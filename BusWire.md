@@ -75,6 +75,7 @@ The description of each message used by BusWire to update its Symbols is describ
 </ul>
 
 ## Interface Functions
+BusWire provides interfaces for the upper-level module Sheets whilst also utilizing various interface functions from the lower-level module Symbol. As BusWire handles most mouse events and dragging animations, a majority of interfaces provided by Symbol is utilized by BusWire, whilst providing basic interfaces for the Sheets layer.
 ### Provided interfaces from BusWire to Sheets
 The only interface provided by BusWire to Sheets is shown below:
 ```F#
