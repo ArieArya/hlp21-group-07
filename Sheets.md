@@ -31,7 +31,9 @@ The description for each field is shown below:
 </ul>
 
 ## Message Functions
-Message functions are used in Sheets to update its model given certain events from the user (i.e. dragging mouse, clicking a HTML <a> tag to create a new symbol, changing symbol parameters through the HTML input tag, etc.). The list of message functions handled by sheets are shown below:
+Message functions are used in Sheets to update its model given certain events from the user (i.e. dragging mouse, clicking a HTML <a> tag to create a new symbol, changing symbol parameters through the HTML input tag, etc.). In addition, as the purpose of Sheet is to integrate the functionalities of the Symbol and BusWire modules, messages from both lower-level modules are used to update the model within Sheets (i.e. its symbols and wires).
+  
+### Message Functions Provided by Sheets
 ```F#
 type KeyboardMsg =
     | CtrlS | AltC | AltV | AltZ | AltShiftZ | DEL
@@ -56,8 +58,28 @@ Each message function is described below:
   <li><b>ChangeNumOutputPorts: </b>changes the CompInfo.NumOutputPorts to the corresponding number of output ports set by the user. This uses a HTML input tag with an <i>OnChange</i> listener to automatically update the number of output ports.</li>
 </ul>
 
+### Message Functions from BusWire utilized by Sheets
+As Sheet obtains all inputs from users, messages must be sent to the BusWire module to correspondingly update its model (e.g. wiring between modules, adding new wires, etc.). Additionally, since most mouse events are handled from within BusWire, all mouse events (with the exception of HTML hyperlinks to create new symbols) are sent to BusWire via a BusWire.MouseMsg. The BusWire messages utilized by Sheets are shown below:
+```F#
+BusWire.Msg.DeleteWire of CommonTypes.ConnectionId
+BusWire.Msg.DeleteWiresBySymbol 
+BusWire.MouseMsg of MouseT
+```
+The description of each message is shown below:
+<ul>
+  <li><b>DeleteWire: </b>deletes a single wire from the BusWire model given its CommonTypes.ConnectionId.</li>
+  <li><b>DeleteWiresBySymbol: </b>deletes all wires from symbols with isSelected = True. This feature allows multiple symbols and their connected wires to be deleted simultaneously.</li>
+  <li><b>MouseMsg: </b>this passes on mouse messages from the users (Up, Down, Drag, Move) to the BusWire module, which correspondingly handles the mouse events (i.e. to animate wire dragging, automatic wire routing, multiple symbol dragging, etc.).</li>
+</ul>
+
+### Message Functions from Symbol utilized by Sheets
+Sheets will also have to call messages to the Symbol module directly. In this particular implementation, the only message called by Sheets directly to Symbols is to create new symbols from user input. The Sheets model contains the type <i>CompInfo</i>, which describes the parameters of the new component being constructed (i.e. component label, port width, number of input ports, number of output ports). Once the user clicks on a HTML hyperlink (a) tag of the module of choice, a Symbol.Msg.AddSymbol message will be sent to create the new symbol (with the specified parameters) and append it to the symbol list.
+```F#
+Symbol.Msg.AddSymbol
+```
+
 ## Interface Functions
-As Sheets is the highest level module of the three, no interface functions are provided by Sheets to the other modules. However, Sheets utilizes interface functions provided by the other modules.
+As Sheets is the highest level module of the three, no interface functions are provided by Sheets to the other modules. However, Sheets utilizes interface functions provided by the other modules to implement its functionality.
 
 ### Interfaces from BusWire
 The interface function utilized by Sheets from the BusWire interfaces are shown below:
