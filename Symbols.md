@@ -7,7 +7,7 @@ The model state is defined as a list of symbols defined by the Symbol type. This
 type Model = Symbol list
 ```
 
-## Symbol Type
+## Symbol Type - should maybe be removed
 The Symbol type contains additional features from those specified in the Skeleton code primarily to add functionalities of: multiple symbol dragging & deletion, hover-to-show-port animations, adaptive number of ports in symbol, and automatic display of available connection ports when dragging wires. The modified Symbol type is shown below:
 ```F#
 type Symbol =
