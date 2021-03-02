@@ -37,7 +37,7 @@ BusWire has a basic requirement to implement the View function of fixed autorout
 The interfaces used in BusWire.fs can be seen in its corresponding <a href="/BusWire.md"> markdown file. </a>
 
 
-# Sheets
+## Sheets
 Sheet has the purpose of integrating the other modules together. Its main requirement is to ensure that all interfaces in all modules work correctly. The primary goals of Sheets include:
 <ul>
   <li>
