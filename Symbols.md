@@ -2,7 +2,7 @@
 The main purpose of Symbols is to create a view function for all the symbols listed in the Issie components. 
 
 ## Model State
-The model state is defined by default as a list of symbols:
+The model state is defined by default as a list of symbols defined by the Symbol type.
 ```F#
 type Model = Symbol list
 ```
