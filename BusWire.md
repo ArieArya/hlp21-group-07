@@ -61,7 +61,7 @@ The only interface provided by BusWire to Sheets is shown below:
 ```F#
 findSelectedWire (wModel: Model) : CommonTypes.ConnectionId option
 ```
-This function provides the sheet with any wires that are currently being dragged so that it can be deleted by the user whilst dragging.
+This function provides the sheet with any wires that are currently being dragged so that users can conveniently delete wires during the dragging process.
 
 ### Used interfaces from Symbol
 Various interfaces are used by BusWire from the Symbols module to perform automatic wire routing, box dragging for multiple symbol selection, etc. These used interfaces are shown below:
