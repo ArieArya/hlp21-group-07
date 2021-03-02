@@ -1,14 +1,14 @@
 # Symbols Interface
-The main purpose of Symbols is to create a view function for all the symbols listed in the Issie components. The main types and interfaces used in Symbol.fs is described in the sections below.
+The main purpose of Symbols is to create a view function for all the symbols listed in the ISSIE components. The main types and interfaces used in Symbol.fs is described in the corresponding sections below.
 
 ## Model State
-The model state is defined by default as a list of symbols defined by the Symbol type.
+The model state is defined as a list of symbols defined by the Symbol type. This describes all Issie components currently defined in the canvas.
 ```F#
 type Model = Symbol list
 ```
 
 ## Symbol Type
-The Symbol type contains additional features from those specified in the Skeleton code. 
+The Symbol type contains additional features from those specified in the Skeleton code primarily to add functionalities of: multiple symbol dragging & deletion, hover-to-show-port animations, adaptive number of ports in symbol, and automatic display of available connection ports when dragging wires. The modified Symbol type is shown below:
 ```F#
 type Symbol =
     {
@@ -57,7 +57,7 @@ The description of each field is described below:
   <li><b>Id:</b> defines the Id of the port.</li>
   <li><b>PortNumber:</b> defines the port number within the component.</li>
   <li><b>PortType:</b> defines the type of the port (i.e. CommonTypes.PortType.Input or CommonTypes.PortType.Output).</li>
-  <li><b>HostId:</b> defines the Id of the host component.</li>
+  <li><b>HostId:</b> defines the component Id of the host component.</li>
   <li><b>Pos:</b> defines the current position of the port.</li>
   <li><b>Width:</b> defines the bus width of the port.</li>
 </ul>
