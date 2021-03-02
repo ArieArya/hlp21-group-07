@@ -61,10 +61,10 @@ The description of each message type is shown below:
 ### Message functions used by BusWire provided by Symbols
 The list of messages sent by BusWire to the lower-level module Symbols is shown below:
 ```F#
-DeleteSymbol 
-ExpandPort of CommonTypes.PortType * int
-BoxSelected of XYPos * XYPos
-SymbolHovering of XYPos
+Symbol.Msg.DeleteSymbol 
+Symbol.Msg.ExpandPort of CommonTypes.PortType * int
+Symbol.Msg.BoxSelected of XYPos * XYPos
+Symbol.Msg.SymbolHovering of XYPos
 ```
 The description of each message used by BusWire to update its Symbols is described below:
 <ul>
