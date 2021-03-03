@@ -73,6 +73,6 @@ This function provides the sheet with any wires that are currently being dragged
 ### Used interfaces from Symbol
 The interface used by BusWire from the Symbols module is shown below:
 ```F#
-isSymbolSelected (symModel: Model) (sId: CommonTypes.ComponentId) : bool
+symbolPortPos: Model -> string(Port.Id) : XYPos
 ```
 This interface is used during the deletion of symbols so it can delete all stray wires from the deleted symbols. By identifying symbols that are currently selected (i.e. isSelected = true), all wires connected to this symbol can be subsequently deleted.
