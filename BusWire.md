@@ -44,6 +44,7 @@ type Msg =
     | AddWire of (CommonTypes.Port * CommonTypes.Port)
     | SetColor of CommonTypes.HighLightColor
     | DeleteWire of CommonTypes.ConnectionId
+    | ToggleLegned of CommonTypes.ConnectionId
     | DeleteWiresBySymbol 
     | MouseMsg of MouseT
 ```
