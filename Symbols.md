@@ -7,61 +7,6 @@ The model state is defined as a list of symbols defined by the Symbol type. This
 type Model = Symbol list
 ```
 
-## Symbol Type - should maybe be removed
-The Symbol type contains additional features from those specified in the Skeleton code primarily to add functionalities of: multiple symbol dragging & deletion, hover-to-show-port animations, adaptive number of ports in symbol, and automatic display of available connection ports when dragging wires. The modified Symbol type is shown below:
-```F#
-type Symbol =
-    {
-        Id : CommonTypes.ComponentId
-        Pos: XYPos
-        LastDragPos : XYPos
-        IsDragging : bool
-        isSelected: bool
-        isHovered: bool
-        Label: string
-        InputPorts: CommonTypes.Port list
-        OutputPorts: CommonTypes.Port list
-        ExpandedPort: CommonTypes.PortType option
-        Vertices: XYPos list
-    }
-```
-The description of each field is described below:
-<ul>
-  <li><b>Id:</b> defines the Id of the component.</li>
-  <li><b>Pos:</b> defines the current position of the center of the component.</li>
-  <li><b>LastDragPos:</b> defines the last dragging position of the component.</li>
-  <li><b>isDragging:</b> determines whether the component is currently being dragged.</li>
-  <li><b>isSelected:</b> determines whether the component is selected by a user. This allows multiple components to be selected simultaneously to allow multiple component dragging and deletion.</li>
-  <li><b>Label:</b> specifies the user-defined label for the added component.</li>
-  <li><b>InputPorts:</b> defines a list of input ports for the component. Each input port has a type CommonTypes.Port.</li>
-  <li><b>OutputPorts:</b> defines a list of output ports for the component. Each output port has a type CommonTypes.Port.</li>
-  <li><b>ExpandedPort:</b> defines the type of port that should be expanded in the component. This is used to indicate possible port connections when dragging wires. If ExpandedPort = None, no ports in the component should be expanded.</li>
-  <li><b>Vertices:</b> defines the vertices of the shape of the component.</li>
-</ul>
-
-## Port Type
-Additional fields are also added to the CommonTypes.Port type.
-```F#
-type Port = 
-      {
-            Id : string
-            PortNumber : int option
-            PortType : PortType
-            HostId : ComponentId
-            Pos: XYPos
-            Width: int
-       } 
-```
-The description of each field is described below:
-<ul>
-  <li><b>Id:</b> defines the Id of the port.</li>
-  <li><b>PortNumber:</b> defines the port number within the component.</li>
-  <li><b>PortType:</b> defines the type of the port (i.e. CommonTypes.PortType.Input or CommonTypes.PortType.Output).</li>
-  <li><b>HostId:</b> defines the component Id of the host component.</li>
-  <li><b>Pos:</b> defines the current position of the port.</li>
-  <li><b>Width:</b> defines the bus width of the port.</li>
-</ul>
-
 ## Message Functions
 Message functions are used to handle messages from other module layers (i.e. BusWire and Sheets) and correspondingly update the symbol model. The list of messages handled by the Symbol module are shown below:
 ```F#
