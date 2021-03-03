@@ -92,8 +92,7 @@ The description of each message type is described below:
 ## Interface Functions
 Interface functions are used to send information to other module layers (i.e. BusWire and Sheets). The main interface functions used are shown below:
 ```F#
-findSrcPortPos (symModel: Model) (sId: CommonTypes.ComponentId) (portId: string) : XYPos 
-findTargetPortPos (symModel: Model) (sId: CommonTypes.ComponentId) (portId: string) : XYPos 
+findPortPos (symModel: Model) (sId: CommonTypes.ComponentId) (portId: string) : XYPos 
 findPortByPosition (symModel: Model) (pos: XYPos) : CommonTypes.Port option 
 isSymbolHoveredAndSelected (symModel: Model) (pos: XYPos) : bool
 isSymbolSelected (symModel: Model) (sId: CommonTypes.ComponentId) : bool
@@ -104,8 +103,7 @@ symbolPortType: Model -> string(Port.Id): CommonTypes.PortType
 symbolPortWidth: Model  -> string(Port.Id):  int
 ```
 <ul>
-  <li><b>findSrcPortPos: </b>finds the new position of the source port when a symbol is moved. This is important to ensure the ports of a symbol follow the symbol when it is being dragged.</li>
-  <li><b>findTargetPortPos: </b>finds the new position of the target port when a symbol is moved. This has the same functionality as above, and is important to ensure the ports follow the symbol which is being dragged.</li>
+  <li><b>findPortPos: </b>finds the new position of the port when a symbol is moved. This is important to ensure the ports of a symbol follow the symbol (i.e. appears attached to the symbol) when it is being dragged.</li>
   <li><b>findPortByPosition: </b>returns the port in the mouse position pos. If no port is found, return None. This is to determine whether a user clicks on a port and to extend a wire to animate wiring coming from that component port.</li>
   <li><b>isSymbolHoveredAndSelected: </b>finds if there is a symbol at a certain hovered position and whether it is selected (i.e. isSelected=true). This is an interface used when dragging multiple symbols to prevent all symbols to be unselected upon release.</li>
   <li><b>isSymbolSelected: </b>checks if a symbol specified by its id is selected (i.e. isSelected = true).</li>
