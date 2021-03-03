@@ -1,37 +1,4 @@
-# BusWire Interface
-BusWire has a basic requirement to implement the View function of fixed autorouted wires. The main types and interfaces used in BusWire.fs is described in the sections below:
 
-## Model State
-The model state for BusWire consists of a list of symbols defined by the Symbol type, a list of wires defined by the Wire type, a color of type CommonTypes.HighLightColor (to set different wire colors), 
-```F#
-type Model = 
-  {
-    Symbol: Symbol.Model
-    WX: Wire list
-    Color: CommonTypes.HighLightColor
-  }
-```
-
-## Wire Type
-The Wire type contains information that specifies the wire connections.
-```F#
-type Wire = 
-  {
-    Id: CommonTypes.ConnectionId 
-    SrcPort: CommonTypes.Port 
-    TargetPort: CommonTypes.Port 
-    IsDragging: bool
-    DraggingPort: CommonTypes.PortType
-  }
-```
-The description of each field is shown below:
-<ul>
-  <li><b>Id: </b>defines the Id for each wire connection.</li>
-  <li><b>SrcPort: </b>defines the source port for the wire connection.</li>
-  <li><b>TargetPort: </b>defines the target port for the wire connection.</li>
-  <li><b>IsDragging: </b>defines whether the wire is currently being dragged by the user.</li>
-  <li><b>DraggingPort: </b>defines the port type with which the wire is being dragged. i.e. if the output port is being dragged, then DraggingPort = CommonTypes.PortType.Output. By default, this value is CommonTypes.PortType.Input.</li>
-</ul>
 
 ## Message Functions
 Message functions in BusWire are used to handle incoming messages from the upper layer module Sheets and to correspondingly update its model. BusWire provides both message functions for the upper level Sheets, but also utilizes message functions from the lower level module Symbols. These message functions are described below:
