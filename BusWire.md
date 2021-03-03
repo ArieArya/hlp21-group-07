@@ -58,12 +58,7 @@ The description of each message type is shown below:
   <li><b>MouseMsg: </b>handles mouse events (i.e. Up, Down, Drag, Move).</li>
 </ul>
 
-### Message functions used by BusWire provided by Symbols
-The only message sent by BusWire to the lower-level module Symbols is shown below:
-```F#
-Symbol.Msg.DeleteSymbol 
-```
-DeleteSymbol simply deletes all selected symbols (i.e. with isSelected = true) from list of Symbols. This allows more convenient multiple symbol / component deletion from the canvas instead of individual deletion of symbols.
+
 
 ## Interface Functions
 BusWire provides interfaces for the upper-level module Sheets whilst also utilizing interface functions from the lower-level module Symbol. 
