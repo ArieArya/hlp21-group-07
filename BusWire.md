@@ -1,8 +1,8 @@
 # BusWire Interface
-BusWire has a basic requirement to implement the View function of fixed autorouted wires. However, for this implementation, BusWire will also be handling all mouse messages, including wire dragging, dragBox calculations for multiple symbol selection, etc. The main types and interfaces used in BusWire.fs is described in the sections below:
+BusWire has a basic requirement to implement the View function of fixed autorouted wires. The main types and interfaces used in BusWire.fs is described in the sections below:
 
 ## Model State
-The model state for BusWire consists of a list of symbols defined by the Symbol type, a list of wires defined by the Wire type, a color of type CommonTypes.HighLightColor (to set different wire colors), and a dragging box of type 2-tuple (XYPos * XYPos) which defines the coordinates of the box which the user drags to select multiple components.
+The model state for BusWire consists of a list of symbols defined by the Symbol type, a list of wires defined by the Wire type, a color of type CommonTypes.HighLightColor (to set different wire colors), 
 ```F#
 type Model = 
   {
@@ -86,11 +86,6 @@ This function provides the sheet with any wires that are currently being dragged
 ### Used interfaces from Symbol
 Various interfaces are used by BusWire from the Symbols module to perform automatic wire routing, box dragging for multiple symbol selection, etc. These used interfaces are shown below:
 ```F#
-findSrcPortPos (symModel: Model) (sId: CommonTypes.ComponentId) (portId: string) : XYPos 
-findTargetPortPos (symModel: Model) (sId: CommonTypes.ComponentId) (portId: string) : XYPos 
-findPortByPosition (symModel: Model) (pos: XYPos) : CommonTypes.Port option 
-isSymbolHoveredAndSelected (symModel: Model) (pos: XYPos) : bool
 isSymbolSelected (symModel: Model) (sId: CommonTypes.ComponentId) : bool
-isAnySymbolDragging (symModel: Model) : bool
 ```
 The description of each interface function can be found under the <a href="/Symbols.md"> Symbol markdown file. </a>
