@@ -10,7 +10,7 @@ Sheet has the purpose of integrating the other modules together. Its main requir
 </ul>
 
 ## Model State
-The model state for Sheets include Wire, which is of type BusWire.Model (this can be observed in the <a href="/BusWire.md">BusWire markdown file</a>), a dragging box of type 2-tuple (XYPos * XYPos) which defines the coordinates of the box which the user drags to select multiple components, and CompInfo, whose type is described below and contains information including the added component label, its port width, the number of input ports, and the number of output ports.
+The model state for Sheets include Wire, which is of type BusWire.Model (this can be observed in the <a href="/BusWire.md">BusWire markdown file</a>), a dragging box of type 2-tuple (XYPos * XYPos) which defines the two coordinates of the corners of the box which the user drags to select multiple components, and CompInfo, whose type is described below and contains information including the added component label, its port width, the number of input ports, and the number of output ports.
 ```F#
 type Model = 
   {
