@@ -94,7 +94,7 @@ Symbol.Msg.SymbolHovering of XYPos
 Each message and its functionality is described below:
 <ul>
   <li><b>AddSymbol: </b>The Sheets model contains the type <i>CompInfo</i>, which describes the parameters of the new component being constructed (i.e. component label, port width, number of input ports, number of output ports). Once the user clicks on a HTML hyperlink (a) tag of the module of choice, a Symbol.Msg.AddSymbol message will be sent to create the new symbol (with the specified parameters) and append it to the symbol list.</li>
-  <li><b>ExpandPort: sets ExpandedPort field of symbol to the correct expanded port (or none if no ports should be expanded). This is used to display larger ports when dragging wires to indicate possible connections. e.g. if an output port is being dragged, all input ports with the same bus-width should be displayed with an expanded port size to indicate possible connection between them, and vice versa.</b></li>
+  <li><b>ExpandPort: </b>sets ExpandedPort field of symbol to the correct expanded port (or none if no ports should be expanded). This is used to display larger ports when dragging wires to indicate possible connections. e.g. if an output port is being dragged, all input ports with the same bus-width should be displayed with an expanded port size to indicate possible connection between them, and vice versa.</li>
   <li><b>BoxSelected: </b>marks all symbols that lies within the rectangular dragging box to isSelected = true. This allows multiple symbol dragging and deletion.</li>
   <li><b>SymbolHovering: </b>marks symbols that are hovered at XYPos to isHovered = true. This is used to display all available ports in the symbol when hovering over it (similar to the feature provided in ISSIE).</li>  
 </ul>
