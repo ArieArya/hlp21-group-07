@@ -84,7 +84,7 @@ The description of each message is shown below:
 </ul>
 
 ### Message Functions from Symbol utilized by Sheets
-Sheets will also have to call messages to the Symbol module directly. For example, Sheets can send messages to Symbols to: create new symbols from user input, deleting symbols, moving symbols, showing ports of symbols when hovering over the symbols, etc. Each message function used by Sheets from Symbols is shown below:
+Sheets will also have to call messages to the Symbol module directly. For example, Sheets can send messages to Symbols to: create new symbols from user input, deleting symbols, moving symbols, showing ports of symbols when hovering over the symbols, showing available ports for connection during wire drag and drop, etc. Each message function used by Sheets from Symbols is shown below:
 ```F#
 Symbol.Msg.AddSymbol
 Symbol.Msg.ExpandPort of CommonTypes.PortType * int
