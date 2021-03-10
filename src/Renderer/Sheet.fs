@@ -436,15 +436,24 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             // check if any symbol is dragging
             let symbolDraggingCheck = Symbol.isAnySymbolDragging (model.Wire.Symbol)
 
+            // check if any wire is hovered
+            let wireDraggingCheck = BusWire.isAnyWireHovered (model.Wire) pos
+
+            // check if anything is dragging
+            let isAnythingDragging = 
+                symbolDraggingCheck || wireDraggingCheck
+
             // try find a port corresponding to the mouse position
             let selectedPort = Symbol.findPortByPosition model.Wire.Symbol pos
 
             // if no port is selected, return the original model with DragBox, otherwise update the ports
             // Note: for current implementation, Symbol uses event listeners and so no checking
             // performed for symbol being clicked. Once integrated, symbol will also be checked.
-            match selectedPort, symbolDraggingCheck with
+            match selectedPort, isAnythingDragging with
             | _, true -> 
-                model, Cmd.none
+                // send mouse message to Buswire
+                let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg mMsg) model.Wire
+                {model with Wire=updatedWire}, Cmd.none
 
             | None, false ->
                 // initialize DragBox and DragWire
@@ -483,7 +492,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     // update symbol to highlight available ports
                     let newSymbol = 
                         model.Wire.Symbol
-                        |> Symbol.update (Symbol.Msg.ExpandPort (wire.DraggingPort, wire.SrcPort.Width))
+                        |> Symbol.update (Symbol.Msg.ExpandPort (model.DragWire.DraggingPort, wire.SrcPort.Width))
                         |> fst
 
                     {model with Wire={model.Wire with WX=updatedWire.WX; Symbol=newSymbol}; DragBox=newDragBox; DragWire=newDragWire}, Cmd.none
@@ -557,7 +566,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         // return updated model
                         {model with Wire={model.Wire with Symbol=newSymbol}; DragBox=resetDragBox}, Cmd.none
 
-
         // mouse drag
         | Drag ->
             // create new drag box
@@ -584,9 +592,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
                 | true, CommonTypes.PortType.Output ->
                     {model.DragWire with TargetEdge=pos}
+            
+            // send mouse message to Buswire
+            let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg mMsg) model.Wire
 
             // return updated model
-            {model with DragBox=newDragBox; DragWire = newDragWire}, Cmd.none
+            {model with Wire=updatedWire; DragBox=newDragBox; DragWire = newDragWire}, Cmd.none
 
 
         // mouse move
