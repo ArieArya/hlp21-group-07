@@ -293,22 +293,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     // which if an output port is dragged, input ports with the same bus width will be expanded to indicate 
     // possible connection, and vice versa.
     | ExpandPort (portType, portWidth) ->
-        match portType with
-        | CommonTypes.PortType.Input ->
-            model
-            |> List.map (fun sym -> 
-                            // assume all input ports in the same symbol has the same width
-                            if portWidth = sym.InputPorts.[0].Width then {sym with ExpandedPort = Some CommonTypes.PortType.Input} 
-                            else sym
-                        ), Cmd.none
+        model
+        |> List.map (fun sym -> 
+                        // assume all input ports in the same symbol has the same width
+                        if portWidth = sym.InputPorts.[0].Width then {sym with ExpandedPort = Some portType} 
+                        else sym
+                    ), Cmd.none
 
-        | CommonTypes.PortType.Output ->
-            model
-            |> List.map (fun sym -> 
-                            // assume all output ports in the same symbol has the same width
-                            if portWidth = sym.OutputPorts.[0].Width then {sym with ExpandedPort = Some CommonTypes.PortType.Output} 
-                            else sym
-                        ), Cmd.none
+
 
     // No other messages
     | _ -> model, Cmd.none
@@ -513,6 +505,41 @@ let findPortPos (symModel: Model) (sId: CommonTypes.ComponentId) (portId: string
     | None, Some port -> port.Pos
     | _, _ -> failwithf "should not happen"
    
+/// Finds port position without symbol id
+let symbolPortPos (symModel: Model) (portId: string): XYPos = 
+    // find symbol with which the port belongs to
+    let selectedSymbol = 
+        symModel
+        |>  List.find (fun sym ->
+                let findInputPort = 
+                    sym.InputPorts
+                    |>  List.tryFind (fun port -> portId = port.Id)
+                
+                let findOutputPort = 
+                    sym.OutputPorts
+                    |>  List.tryFind(fun port -> portId = port.Id)
+
+                match findInputPort, findOutputPort with
+                | Some _, _ -> true
+                | _, Some _ -> true
+                | _ -> false
+            )
+    
+    // find the port position
+    let findInputPort = 
+        selectedSymbol.InputPorts
+        |>  List.tryFind (fun port -> portId = port.Id)
+    
+    let findOutputPort = 
+        selectedSymbol.OutputPorts
+        |>  List.tryFind(fun port -> portId = port.Id)
+
+    match findInputPort, findOutputPort with
+    | Some port, _ -> port.Pos
+    | _, Some port -> port.Pos
+    | _, _ -> {X=0.; Y=0.} // this should never happen
+
+    
 
 /// Finds if there is a port at a certain position
 let findPortByPosition (symModel: Model) (pos: XYPos) : CommonTypes.Port option = 

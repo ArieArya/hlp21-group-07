@@ -13,7 +13,7 @@ open Helpers
 type Wire = {
     Id: CommonTypes.ConnectionId 
     SrcPort: CommonTypes.Port // Input Port
-    TargetPort: CommonTypes.Port // Source Port
+    TargetPort: CommonTypes.Port // Output Port
     IsDragging: bool
     DraggingPort: CommonTypes.PortType // Input for Src, Output for Target
     }
@@ -197,11 +197,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 Some(p2, p1)
             | _ -> None
 
+        let matchWidths = port1.Width = port2.Width
+
         // if no port combinations possible, return the original model, otherwise
         // add new wire between the ports to the new model
-        match matchPorts with
-        | None -> model, Cmd.none
-        | Some (inputPort, outputPort) ->
+        match matchPorts, matchWidths with
+        | None, _ -> model, Cmd.none
+        | _, false -> model, Cmd.none
+        | Some (inputPort, outputPort), true ->
             let wire = {
                     Id = CommonTypes.ConnectionId (uuid())
                     SrcPort = inputPort
@@ -256,10 +259,3 @@ let extractWires (wModel: Model) : CommonTypes.Component list =
     failwithf "Not implemented"
 let updateSymbolModelWithComponent (symModel: Model) (comp:CommonTypes.Component) =
     failwithf "Not Implemented"
-
-
-
-    
-
-
-
