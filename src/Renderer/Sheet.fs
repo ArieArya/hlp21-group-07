@@ -17,12 +17,26 @@ type CompInfo = {
     NumOutputPorts: int
     }
 
+type DragBoxType = {
+    Edge1: XYPos
+    Edge2: XYPos
+    isDragging: bool
+}
+
+type DragWireType = {
+    SrcEdge: XYPos
+    TargetEdge: XYPos
+    isDragging: bool
+    DraggingPort: CommonTypes.PortType
+}
+
+
 type Model = {
     Wire: BusWire.Model
     ComponentInfo: CompInfo
-    DragBox: (XYPos * XYPos)
+    DragBox: DragBoxType
+    DragWire: DragWireType
     }
-
 
 
 //------------------------------------------------------------------------//
@@ -134,30 +148,45 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
 
     // define the dragBox - the box in which users can select multiple symbols
     let dragBox = 
-            // obtain the two corners of the dragging box
-            let pos1 = fst model.DragBox
-            let pos2 = snd model.DragBox
+        // obtain the two corners of the dragging box
+        let pos1 = model.DragBox.Edge1
+        let pos2 = model.DragBox.Edge2
 
-            // infer the four vertices of the dragging box
-            let startingPos = (pos1.X, pos1.Y)
-            let targetPos = (pos2.X, pos2.Y)
-            let intermediatePos1 = (pos1.X, pos2.Y)
-            let intermediatePos2 = (pos2.X, pos1.Y)
-            
-            // convert the four vertices into correct string format for SVG display
-            let displayString = 
-                convertPoly ([startingPos] @ [intermediatePos1] @ [targetPos] @ [intermediatePos2])
+        // infer the four vertices of the dragging box
+        let startingPos = (pos1.X, pos1.Y)
+        let targetPos = (pos2.X, pos2.Y)
+        let intermediatePos1 = (pos1.X, pos2.Y)
+        let intermediatePos2 = (pos2.X, pos1.Y)
+        
+        // convert the four vertices into correct string format for SVG display
+        let displayString = 
+            convertPoly ([startingPos] @ [intermediatePos1] @ [targetPos] @ [intermediatePos2])
 
-            // draw SVG polygon for the dragging box
-            polygon [
-                Points displayString
-                SVGAttr.Fill "none"
-                SVGAttr.Stroke "black"
-                SVGAttr.StrokeDasharray "5, 5"
-            ][]
+        // draw SVG polygon for the dragging box
+        polygon [
+            Points displayString
+            SVGAttr.Fill "none"
+            SVGAttr.Stroke "black"
+            SVGAttr.StrokeDasharray "5, 5"
+        ][]
+
+    // define the dragLine
+    let dragLine = 
+        let pos1 = model.DragWire.SrcEdge
+        let pos2 = model.DragWire.TargetEdge
+
+        let displayString = 
+            convertPoly([(pos1.X, pos1.Y)] @ [pos2.X, pos2.Y])
+
+        polyline [
+            Points displayString
+            SVGAttr.Fill "none"
+            SVGAttr.Stroke "#326199"
+            SVGAttr.StrokeDasharray "10, 10"
+        ][]
 
     // obtains the canvas for drawing the canvas grid and the busWire view
-    let baseCanvas = drawGrid @ [svgReact] @ [dragBox]
+    let baseCanvas = drawGrid @ [svgReact] @ [dragBox] @ [dragLine]
 
     // draws the SVG canvas
     div [ Style 
@@ -404,113 +433,94 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         match operation with 
         // mouse down
         | Down -> 
-            // initialize DragBox
-            let newDragBox = (pos, pos)
+            // check if any symbol is dragging
+            let symbolDraggingCheck = Symbol.isAnySymbolDragging (model.Wire.Symbol)
+
+            // check if any wire is hovered
+            let wireDraggingCheck = BusWire.isAnyWireHovered (model.Wire) pos
+
+            // check if anything is dragging
+            let isAnythingDragging = 
+                symbolDraggingCheck || wireDraggingCheck
 
             // try find a port corresponding to the mouse position
             let selectedPort = Symbol.findPortByPosition model.Wire.Symbol pos
 
-            // if no port is selected, return the original model, otherwise update the ports
+            // if no port is selected, return the original model with DragBox, otherwise update the ports
             // Note: for current implementation, Symbol uses event listeners and so no checking
             // performed for symbol being clicked. Once integrated, symbol will also be checked.
-            match selectedPort with
-            | None -> model, Cmd.none
-            | Some port -> 
+            match selectedPort, isAnythingDragging with
+            | _, true -> 
+                // send mouse message to Buswire
+                let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg mMsg) model.Wire
+                {model with Wire=updatedWire}, Cmd.none
+
+            | None, false ->
+                // initialize DragBox and DragWire
+                let newDragBox = {Edge1 = pos; Edge2 = pos; isDragging = true}
+                let newDragWire = {SrcEdge = pos; TargetEdge = pos; isDragging = false; DraggingPort=CommonTypes.PortType.Input}
+                let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg mMsg) model.Wire
+                {model with Wire=updatedWire; DragBox=newDragBox; DragWire=newDragWire}, Cmd.none
+
+            | Some port, false ->
+                // initialize DragBox
+                let newDragBox = {Edge1 = pos; Edge2 = pos; isDragging = false} 
+
                 // check if selected port already has a corresponding wire
                 let selectedWire =
                     model.Wire.WX
                     |> List.tryFind (fun wire -> wire.SrcPort.Id = port.Id || wire.TargetPort.Id = port.Id)
 
                 match selectedWire with
-                // If wire found, set IsDragging to true
+                // If wire found, delete wire and initialize new DragWire
                 | Some wire -> 
-                    // set wire to dragging
-                    let updatedWX = 
-                        model.Wire.WX
-                        |> List.map (fun x -> if x.Id = wire.Id then {wire with IsDragging = true} else x)
+                    // initialize DragWire
+                    let srcPos, targetPos, dragType = 
+                        match wire.SrcPort.Id = port.Id, wire.TargetPort.Id = port.Id with
+                        // src port being dragged
+                        | true, false -> pos, wire.TargetPort.Pos, CommonTypes.PortType.Input
+
+                        // target port being dragged
+                        | _, _ -> wire.SrcPort.Pos, pos, CommonTypes.PortType.Output
+                    
+                    let newDragWire = {SrcEdge=srcPos; TargetEdge=targetPos; isDragging=true; DraggingPort=dragType}
+
+                    // delete existing wire
+                    let updatedWire, _ = 
+                        model.Wire
+                        |> BusWire.update (BusWire.Msg.DeleteWire (wire.Id))
 
                     // update symbol to highlight available ports
                     let newSymbol = 
                         model.Wire.Symbol
-                        |> Symbol.update (Symbol.Msg.ExpandPort (wire.DraggingPort, wire.SrcPort.Width))
+                        |> Symbol.update (Symbol.Msg.ExpandPort (model.DragWire.DraggingPort, wire.SrcPort.Width))
                         |> fst
 
-                    {model with Wire={model.Wire with WX=updatedWX; Symbol=newSymbol}; DragBox=newDragBox}, Cmd.none
+                    {model with Wire={model.Wire with WX=updatedWire.WX; Symbol=newSymbol}; DragBox=newDragBox; DragWire=newDragWire}, Cmd.none
                 
-                // if no wire exists, create a new one
+                // if no wire exists, visualize a new one
                 | None -> 
-                    match port.PortType with
-                    // start dragging from input port
-                    | CommonTypes.PortType.Input ->
-                        // create a temporary output port while dragging
-                        let newPort : CommonTypes.Port = {
-                            Id = (Helpers.uuid()) 
-                            PortType = CommonTypes.PortType.Output
-                            PortNumber = Some 1
-                            HostId = CommonTypes.ComponentId (Helpers.uuid())
-                            Pos = pos 
-                            Width = port.Width
-                        }
+                    let dragPortType = 
+                        match port.PortType with
+                        | CommonTypes.PortType.Input -> CommonTypes.PortType.Output
+                        | CommonTypes.PortType.Output -> CommonTypes.PortType.Input
 
-                        // create a new wire to connect the ports
-                        let newWire : BusWire.Wire = {
-                            Id = CommonTypes.ConnectionId (uuid())
-                            SrcPort = port
-                            TargetPort = newPort
-                            IsDragging = true
-                            DraggingPort = CommonTypes.PortType.Output 
-                        }
+                    let newDragWire = {SrcEdge=port.Pos; TargetEdge=port.Pos; isDragging=true; DraggingPort=dragPortType}
 
-                        // append the new wire to the model
-                        let newWires = newWire::model.Wire.WX
-
-                        // update all symbols to show expanded ports when dragging wires
-                        let newSymbol = 
-                            model.Wire.Symbol
-                            |> Symbol.update (Symbol.Msg.ExpandPort (newWire.DraggingPort, newWire.SrcPort.Width))
-                            |> fst
-                        
-                        // returns updated model
-                        {model with Wire={model.Wire with WX=newWires; Symbol=newSymbol}; DragBox=newDragBox}, Cmd.none
+                    // update all symbols to show expanded ports when dragging wires
+                    let newSymbol = 
+                        model.Wire.Symbol
+                        |> Symbol.update (Symbol.Msg.ExpandPort (dragPortType, port.Width))
+                        |> fst
                     
-                    // start dragging from output port
-                    | CommonTypes.PortType.Output -> 
-                        // create a temporary input port while dragging
-                        let newPort : CommonTypes.Port = {
-                            Id = (Helpers.uuid()) 
-                            PortType = CommonTypes.PortType.Input
-                            PortNumber = Some 1
-                            HostId = CommonTypes.ComponentId (Helpers.uuid())
-                            Pos = pos
-                            Width = port.Width
-                        }
-
-                        // create a new wire to connect the ports
-                        let newWire : BusWire.Wire = {
-                            Id = CommonTypes.ConnectionId (uuid())
-                            SrcPort = newPort
-                            TargetPort = port
-                            IsDragging = true
-                            DraggingPort = CommonTypes.PortType.Input // input is dragging
-                        }
-
-                        // append the new wire to the model
-                        let newWires = newWire::model.Wire.WX
-
-                        // update all symbols to show expanded ports when dragging wires
-                        let newSymbol = 
-                            model.Wire.Symbol
-                            |> Symbol.update (Symbol.Msg.ExpandPort (newWire.DraggingPort, newWire.SrcPort.Width))
-                            |> fst
-
-                        // returns updated model
-                        {model with Wire={model.Wire with WX=newWires; Symbol=newSymbol}; DragBox=newDragBox}, Cmd.none
-
-
+                    // returns updated model
+                    {model with Wire={model.Wire with Symbol=newSymbol}; DragBox=newDragBox; DragWire=newDragWire}, Cmd.none
+                    
         // mouse up
         | Up ->
-            // reset dragBox (i.e. so it is not displayed when mouse up)
-            let resetDragBox = (pos, pos)
+            // reset dragBox and dragWire (i.e. so it is not displayed when mouse up)
+            let resetDragBox = {Edge1=pos; Edge2=pos; isDragging=false}
+            let resetDragWire = {SrcEdge=pos; TargetEdge=pos; isDragging=false; DraggingPort=CommonTypes.PortType.Input}
            
             // make all ports not expanded / highlighted (since mouse is lifted)
             let newSymbol = 
@@ -519,122 +529,84 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 | true -> model.Wire.Symbol
 
                 // otherwise, deselect all symbols
-                | false -> fst (Symbol.update (Symbol.Msg.BoxSelected model.DragBox) model.Wire.Symbol)
+                | false -> fst (Symbol.update (Symbol.Msg.BoxSelected (model.DragBox.Edge1, model.DragBox.Edge2)) model.Wire.Symbol)
                 |> List.map (fun sym -> {sym with ExpandedPort = None})
 
             // find if mouse up occurs at any port
             let selectedPort = Symbol.findPortByPosition model.Wire.Symbol pos
 
             match selectedPort with
-            // if no port selected, delete the temporary wire if it exists
+            // if no port selected, return model with updated symbol
             | None ->
-                let newWX = 
-                    model.Wire.WX
-                    |> List.filter (fun wire -> not wire.IsDragging)
-                
-                {model with Wire={model.Wire with WX=newWX; Symbol=newSymbol}; DragBox=resetDragBox}, Cmd.none
+                {model with Wire={model.Wire with Symbol=newSymbol}; DragBox=resetDragBox; DragWire=resetDragWire}, Cmd.none
             
-            // if port selected, add new wire if port is valid (i.e. input -> input, output -> output, and equal bus width)
+            // if port selected, add new wire between two ports if wire was dragging
             | Some port ->
-                let newWX = 
-                    model.Wire.WX
-                    |> List.collect (fun wire -> 
-                                        if wire.IsDragging then
-                                            match wire.DraggingPort with
-                                            // input port dragged
-                                            | CommonTypes.PortType.Input -> 
+                match model.DragWire.isDragging with
+                | false -> {model with Wire={model.Wire with Symbol=newSymbol}; DragBox=resetDragBox}, Cmd.none
 
-                                                // if valid port set new port, else remove the temporary wire
-                                                if port.PortType = CommonTypes.PortType.Input && port.Width = wire.TargetPort.Width
-                                                then [{wire with SrcPort = port; IsDragging = false}]
-                                                else []
-                                            
-                                            // output port dragged
-                                            | CommonTypes.PortType.Output -> 
+                | true -> 
+                    let startDragPort = 
+                        match model.DragWire.DraggingPort with
+                        // src port being dragged, so return target port
+                        | CommonTypes.PortType.Input ->
+                            Symbol.findPortByPosition (model.Wire.Symbol) (model.DragWire.TargetEdge)
 
-                                                // if valid port set new port, else remove the temporary wire
-                                                if port.PortType = CommonTypes.PortType.Output && port.Width = wire.SrcPort.Width
-                                                then [{wire with TargetPort = port; IsDragging = false}]
-                                                else []
-                                        
-                                        // if wire is not dragging, return the wire
-                                        else 
-                                            [wire]
-                                    )
-                
-                // return updated model
-                {model with Wire={model.Wire with WX=newWX; Symbol=newSymbol}; DragBox=resetDragBox}, Cmd.none
+                        // target port being dragged, so return source port
+                        | CommonTypes.PortType.Output ->
+                            Symbol.findPortByPosition (model.Wire.Symbol) (model.DragWire.SrcEdge)
 
+                    // should always return Some (not None)
+                    match startDragPort with
+                    | Some originPort ->
+                        // return updated model
+                        let newWire, _ = BusWire.update (BusWire.Msg.AddWire (originPort, port)) (model.Wire)
+                        {model with Wire={model.Wire with WX=newWire.WX; Symbol=newSymbol}; DragBox=resetDragBox}, Cmd.none
+
+                    | None ->
+                        // return updated model
+                        {model with Wire={model.Wire with Symbol=newSymbol}; DragBox=resetDragBox}, Cmd.none
 
         // mouse drag
         | Drag ->
             // create new drag box
             let newDragBox = 
-                // check if any symbol is dragging
-                let isSymbolDragging = 
-                    Symbol.isAnySymbolDragging model.Wire.Symbol
-                
-                // check if any wire is dragging
-                let isWireDragging = 
-                    model.Wire.WX
-                    |> List.exists (fun wire -> wire.IsDragging)
+                match model.DragBox.isDragging with
+                // if dragbox is not dragging, reset the position
+                | false -> 
+                    {model.DragBox with Edge1=pos; Edge2=pos}
 
-                // check if either symbols or wires are dragging
-                let isAnythingDragging = 
-                    isSymbolDragging || isWireDragging
+                // else place new dragbox coordinates
+                | true ->
+                    {model.DragBox with Edge2=pos}
 
-                match isAnythingDragging with
-                // if anything is dragging, do not draw the drag box
-                | true -> 
-                    (pos, pos)
+            // create new drag wire
+            let newDragWire = 
+                match model.DragWire.isDragging, model.DragWire.DraggingPort with
+                // if wire is not dragging, reset the position
+                | false, _ ->
+                    {model.DragWire with SrcEdge=pos; TargetEdge=pos}
 
-                // if nothing is dragging, then draw drag box
-                | false ->
-                    let pos1 = fst model.DragBox 
-                    let pos2 = pos 
-                    (pos1, pos2)
+                // else place new dragwire coordinates
+                | true, CommonTypes.PortType.Input ->
+                    {model.DragWire with SrcEdge=pos}
 
-            // Update wire based on dragged wire
-            let newWX = 
-                model.Wire.WX
-                |> List.map (fun wire -> 
-                    // move new wire being dragged
-                    if wire.IsDragging then 
-                        match wire.DraggingPort with
-                        // input is dragging
-                        | CommonTypes.PortType.Input -> 
-                            // move the temporary port to show wire dragging animation
-                            let newSrcPort = {wire.SrcPort with Pos=pos}
-                            {wire with SrcPort = newSrcPort}
-                        
-                        // output is dragging
-                        | CommonTypes.PortType.Output -> 
-                            // move the temporary port to show wire dragging animation
-                            let newTargetPort = {wire.TargetPort with Pos=pos}
-                            {wire with TargetPort = newTargetPort}
-
-                    // move wire alongside its corresponding ports if symbol dragged
-                    else 
-                        // find new source and target symbol positions
-                        let newSrcPos = Symbol.findPortPos model.Wire.Symbol wire.SrcPort.HostId wire.SrcPort.Id
-                        let newTargetPos = Symbol.findPortPos model.Wire.Symbol wire.TargetPort.HostId wire.TargetPort.Id
-
-                        // find new source and target ports with updated positions
-                        let newSrcPort = {wire.SrcPort with Pos=newSrcPos}
-                        let newTargetPort = {wire.TargetPort with Pos=newTargetPos}
-
-                        {wire with SrcPort = newSrcPort; TargetPort = newTargetPort}
-                    )
+                | true, CommonTypes.PortType.Output ->
+                    {model.DragWire with TargetEdge=pos}
+            
+            // send mouse message to Buswire
+            let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg mMsg) model.Wire
 
             // return updated model
-            {model with Wire={model.Wire with WX=newWX}; DragBox=newDragBox}, Cmd.none
+            {model with Wire=updatedWire; DragBox=newDragBox; DragWire = newDragWire}, Cmd.none
 
 
         // mouse move
         | Move -> 
-            // reset dragBox
-            let resetDragBox = (pos, pos)
-
+            // reset dragBox and dragWire
+            let resetDragBox = {Edge1=pos; Edge2=pos; isDragging=false}
+            let resetDragWire = {SrcEdge=pos; TargetEdge=pos; isDragging=false; DraggingPort=CommonTypes.PortType.Input}
+           
             // obtain new symbol
             let newSymbol, _ = 
                 Symbol.update (Symbol.Msg.SymbolHovering pos) model.Wire.Symbol
@@ -655,14 +627,18 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 )
 
             // return updated model
-            {model with Wire={model.Wire with WX=newWX; Symbol=newSymbol}; DragBox=resetDragBox}, Cmd.none
+            {model with Wire={model.Wire with WX=newWX; Symbol=newSymbol}; DragBox=resetDragBox; DragWire=resetDragWire}, Cmd.none
 
 /// Initialization
 let init() = 
     let model,cmds = (BusWire.init 1)()
-    let dragBoxCoords = ({X=100.; Y=100.}, {X=100.; Y=100.}) 
+    let dragBoxInit = {Edge1={X=100.; Y=100.}; Edge2={X=100.; Y=100.}; isDragging=false}
+    let dragWireInit = {SrcEdge={X=100.; Y=100.}; TargetEdge={X=100.; Y=100.}; isDragging=false; DraggingPort=CommonTypes.PortType.Input}
+
     {
         Wire = model
         ComponentInfo = {PortWidth = 1; ComponentLabel = "C1"; NumInputPorts = 1; NumOutputPorts = 1}
-        DragBox=dragBoxCoords
+        DragBox=dragBoxInit
+        DragWire=dragWireInit
+
     }, Cmd.map Wire cmds

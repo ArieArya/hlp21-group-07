@@ -13,9 +13,13 @@ open Helpers
 type Wire = {
     Id: CommonTypes.ConnectionId 
     SrcPort: CommonTypes.Port // Input Port
-    TargetPort: CommonTypes.Port // Source Port
-    IsDragging: bool
-    DraggingPort: CommonTypes.PortType // Input for Src, Output for Target
+    TargetPort: CommonTypes.Port // Output Port
+    Points: XYPos list 
+    DidUserModifyPoint: bool list // List corresponding to line points. A value of true suggests the user has modified that point
+    IsSelected: bool
+    SegmentSelected: (XYPos*XYPos) option // Stores which line segment has been selected
+    Width: int 
+    ShowLegend: bool
     }
 
 type Model = {
@@ -25,6 +29,7 @@ type Model = {
     }
 
 
+
 //------------------------------------------------------------------------//
 //---------------------------Message Type---------------------------------//
 //------------------------------------------------------------------------//
@@ -32,10 +37,11 @@ type Model = {
 type Msg =
     | Symbol of Symbol.Msg
     | AddWire of (CommonTypes.Port * CommonTypes.Port)
+    | DeleteWire of (CommonTypes.ConnectionId)
+    | ToggleLegend of (CommonTypes.ConnectionId)
     | SetColor of CommonTypes.HighLightColor
-    | DeleteWire of CommonTypes.ConnectionId
-    | DeleteWiresBySymbol 
     | MouseMsg of MouseT
+    | DeleteWiresBySymbol
 
 
 
@@ -62,128 +68,282 @@ let convertPoly inpList =
 type WireRenderProps = {
     key : CommonTypes.ConnectionId
     WireP: Wire
-    SrcP: CommonTypes.Port
-    TgtP: CommonTypes.Port
+    Width: int
+    Points: XYPos list 
+    ColorP: string
+    ShowLegend: bool 
+    }
+
+type LineRenderProps = {
+    SrcP: XYPos 
+    TgtP: XYPos
     ColorP: string
     StrokeWidthP: string 
-}
+    }
 
-/// Renders a single wire between two ports
-let singleWireView = 
+let makeSVGLine color (startP, endP) = 
+    line [
+        X1 startP.X
+        Y1 startP.Y
+        X2 endP.X
+        Y2 endP.Y
+        SVGAttr.Stroke color
+        SVGAttr.StrokeWidth (sprintf "2px")  ] []
+
+let makeText (textIn: string) (pos: XYPos) (size: string) (col: string) = 
+    text [ 
+            X (pos.X); 
+            Y (pos.Y); 
+            Style [
+                TextAnchor "middle" // horizontal algnment vs (X,Y)
+                DominantBaseline "middle" // vertical alignment vs (X,Y)
+                FontSize size
+                FontWeight "Bold"
+                Fill col // font color
+                UserSelect UserSelectOptions.None
+                ]
+            ] [str textIn]
+
+let makeWireAnnotation (wirePoints: XYPos list) (width: int) col = // Create width annotation
+    let srcP = wirePoints.[0]
+    let firstP = wirePoints.[1]
+    let xPos = srcP.X + (firstP.X-srcP.X)/2.
+    let widthText = makeText (sprintf "%i" width) {X=xPos; Y=srcP.Y-20.} "15px" col
+    let widthLine = makeSVGLine col ({ X =xPos-1.; Y=srcP.Y-10.}, {X =xPos+1.; Y=srcP.Y+10.})
+    [widthText; widthLine]
+
+let renderWire = // Return wire svg
     FunctionComponent.Of(
         fun (props: WireRenderProps) ->
-            // starting wire segment
-            let startingPos = 
-                (props.TgtP.Pos.X, props.TgtP.Pos.Y)
+            let wireAnnotation = 
+                if props.ShowLegend 
+                then makeWireAnnotation (props.Points) (props.Width) (props.ColorP)
+                else []
+            props.Points 
+            |> List.pairwise //now we have points as pairs
+            |> List.map (makeSVGLine (props.ColorP))
+            |> fun svgline -> g [] (List.append svgline wireAnnotation)    
+            )   
+
+let requiresThreeLines srcPortPos tgtPortPos = // helper to determine whether target port is left of source port
+    srcPortPos.X <= tgtPortPos.X 
+
+let inbetween a b c = // check if a is between b and c
+    if b > c 
+    then (a<b)&&(a>c)
+    else (a>b)&&(a<c)
+
+let selectSide oldVal srcVal tgtVal = // helper to ensure wire does not go further than src or tgt port position
+    if oldVal >= tgtVal 
+    then tgtVal 
+    else srcVal 
+
+let generateThreeLines srcPortPos tgtPortPos (oldPoints: XYPos list) (didUserModifyPoint: bool list) = //generates 4 points for wire based on new src and tgt points and old user modification information
+    let horizontalDifference = tgtPortPos.X - srcPortPos.X
+    let middleLineX = 
+        if (didUserModifyPoint.[1] && didUserModifyPoint.[2]) //Check whether user modified the points of vertical line
+        then 
+            if inbetween (oldPoints.[1].X) (srcPortPos.X) (tgtPortPos.X)
+            then (oldPoints.[1].X)
+            else selectSide (oldPoints.[1].X) (srcPortPos.X) (tgtPortPos.X)       
+        else 
+            srcPortPos.X+horizontalDifference/2.
+    [srcPortPos; {X=middleLineX; Y=srcPortPos.Y}; {X=middleLineX; Y=tgtPortPos.Y}; tgtPortPos]
             
-            // ending wire segment
-            let endingPos =
-                (props.SrcP.Pos.X, props.SrcP.Pos.Y)
+let generateFiveLines srcPortPos tgtPortPos (oldPoints: XYPos list) (didUserModifyPoint: bool list) = //Same as three lines
+    let firstVerticalLineX = 
+        if didUserModifyPoint.[1] && didUserModifyPoint.[2]
+        then 
+            if oldPoints.[1].X > srcPortPos.X
+            then oldPoints.[1].X 
+            else srcPortPos.X
+        else srcPortPos.X+100.
 
-            // intermediate wire segment
-            let intermediatePos1 = 
-                match props.SrcP.Pos.X - props.TgtP.Pos.X with
-                | a when a >= 40. -> (props.TgtP.Pos.X + a/2., props.TgtP.Pos.Y)
-                | _ -> (props.TgtP.Pos.X + 40., props.TgtP.Pos.Y)
+    let horizontalLine = 
+        if didUserModifyPoint.[2] && didUserModifyPoint.[3]
+        then oldPoints.[2].Y 
+        else (srcPortPos.Y+tgtPortPos.Y)/2.
 
-            // intermediate wire segment
-            let intermediatePos4 = 
-                match props.SrcP.Pos.X - props.TgtP.Pos.X with
-                | a when a >= 40. -> (props.TgtP.Pos.X + a/2., props.SrcP.Pos.Y)
-                | _ -> (props.SrcP.Pos.X - 40., props.SrcP.Pos.Y)
+    let secondVerticalLineX = 
+        if didUserModifyPoint.[3] && didUserModifyPoint.[4]
+        then 
+            if oldPoints.[4].X < tgtPortPos.X
+            then oldPoints.[4].X 
+            else tgtPortPos.X
+        else tgtPortPos.X-100.
 
-            // intermediate wire segment
-            let intermediatePos2 = 
-                let curY = (snd startingPos + snd endingPos)/2.
-                let curX = fst intermediatePos1
-                (curX, curY)
+    [srcPortPos; {X=firstVerticalLineX; Y=srcPortPos.Y}; {X=firstVerticalLineX;Y=horizontalLine}; {X=secondVerticalLineX; Y=horizontalLine}; {X=secondVerticalLineX; Y=tgtPortPos.Y}; tgtPortPos]
 
-            // intermediate wire segment
-            let intermediatePos3 = 
-                let curY = (snd startingPos + snd endingPos)/2.
-                let curX = fst intermediatePos4
-                (curX, curY)
+let generateFalses count : bool list = //Helper to create initial DidUserModifyPoint
+    List.replicate count false 
 
-            // find the width of the wire
-            let wireWidth = 
-                props.SrcP.Width
+let getInitialWirePoints (srcPortPos: XYPos) (tgtPortPos: XYPos) : XYPos list= 
+    let initialDidUser = generateFalses 6
+    if requiresThreeLines srcPortPos tgtPortPos 
+    then generateThreeLines srcPortPos tgtPortPos [] initialDidUser
+    else generateFiveLines srcPortPos tgtPortPos [] initialDidUser
 
-            // converts list of coordinates to correct string format for SVG
-            let displayString = 
-                convertPoly ([startingPos] @ [intermediatePos1] @ [intermediatePos2] @ [intermediatePos3] @ [intermediatePos4] @ [endingPos])
+let createNewPoints srcPortPos tgtPortPos oldPoints didUserModifyPoint = 
+    let oldSrcPortPos = List.head oldPoints
+    let oldTgtPortPos = List.last oldPoints 
+    match (requiresThreeLines oldSrcPortPos oldTgtPortPos, requiresThreeLines srcPortPos tgtPortPos) with 
+    | (false, true) | (true, false) -> getInitialWirePoints srcPortPos tgtPortPos 
+    | (true, true) -> generateThreeLines srcPortPos tgtPortPos oldPoints didUserModifyPoint//keeping 3 lines
+    | (false, false) -> generateFiveLines srcPortPos tgtPortPos oldPoints didUserModifyPoint
 
-            [
-                // display the wire using polyline
-                polyline [
-                    Points displayString
+let getDidUser newPoints oldPoints oldDidUserModify = //work out if algorithm had to change user set points
+    if (List.length newPoints <> List.length oldPoints)
+    then generateFalses (List.length newPoints)
+    else oldDidUserModify
 
-                    SVGAttr.Fill "none"
-                    SVGAttr.Stroke props.ColorP
-                    SVGAttr.StrokeWidth props.StrokeWidthP ] []
+let updateWire (symbolModel: Symbol.Model) (wire: Wire) : Wire = 
+    // get new source port pos
+    let srcPortPos = Symbol.symbolPortPos (symbolModel) (wire.SrcPort.Id)
+    let tgtPortPos = Symbol.symbolPortPos (symbolModel) (wire.TargetPort.Id)
+    let newPoints = createNewPoints srcPortPos tgtPortPos (wire.Points) (wire.DidUserModifyPoint)// changeInandOut (wire.Points) srcPortPos tgtPortPos
+    let didUser = getDidUser newPoints (wire.Points) (wire.DidUserModifyPoint)
+    {wire with Points= newPoints; DidUserModifyPoint=didUser}
 
-                // displays the width of the wire
-                text [
-                    X ((fst startingPos) + 7.)
-                    Y ((snd startingPos) - 7.)
-                    Style [
-                        FontSize "14px"
-                        FontWeight "Bold"
-                        UserSelect UserSelectOptions.None
-                    ]
-                ][str (string wireWidth)]
-                                 
-            ]
-            |> ofList
-        )
-
-/// View function for BusWire layer of SVG
-let view (model:Model) (dispatch: Dispatch<Msg>)=
-    // displays wires in the canvas
+let view (model:Model) (dispatch: Dispatch<Msg>)=    
+    let wireModel : Wire list= 
+        List.map (updateWire (model.Symbol)) (model.WX) 
     let wires = 
-        model.WX
+        wireModel
         |> List.map (fun w ->
-            // if wire is dragging then color is grey, otherwise it is black
-            let color = 
-                if w.IsDragging then "grey" else "black"
-            
-            // if wire is dragging, then its displayed width is 1px, otherwise 2px
-            let strokeWidth = 
-                if w.IsDragging then "1px" else "2px"
-
-            // define props for renderring wires
+            let col = if (w.IsSelected) then "Blue" else model.Color.Text()
             let props = {
                 key = w.Id
                 WireP = w
-                SrcP = w.SrcPort 
-                TgtP = w.TargetPort 
-                ColorP = color
-                StrokeWidthP = strokeWidth }
-
-            singleWireView props)
-
-    // obtains symbols
-    let symbols = Symbol.view model.Symbol (fun sMsg -> dispatch (Symbol sMsg))
-        
-    g [] [(g [] wires); symbols]
+                Points = w.Points
+                ColorP = col
+                Width= w.Width 
+                ShowLegend = w.ShowLegend}
+            renderWire props)
+    let symbols = Symbol.view model.Symbol (fun sMsg -> dispatch (Symbol sMsg)) 
+    g [] [symbols; (g [] wires); ]
 
 
-/// Initialization
 let init n () =
     let symbols, cmd = Symbol.init()
-    
-    {WX=[]; Symbol=symbols; Color=CommonTypes.Red},Cmd.none
+    let symIds = List.map (fun (sym:Symbol.Symbol) -> sym.Id) symbols
+    let rng = System.Random 0
+    []
+    |> (fun wires -> {WX=wires;Symbol=symbols; Color=CommonTypes.Red},Cmd.none)
 
-/// Update function to update BusWire models
+let makeWireFromPorts (srcPort) (targetPort) (points: XYPos list) (width: int) : Wire=
+        {
+            Id=CommonTypes.ConnectionId (uuid())
+            SrcPort = srcPort
+            TargetPort = targetPort
+            Points = points
+            DidUserModifyPoint=generateFalses (List.length points)
+            SegmentSelected = None
+            IsSelected = false
+            Width = width
+            ShowLegend = true
+        }
+
+let wasMouseBetweenPoints mousePos points = 
+    match points with 
+    | (first, second) when first.X = second.X -> (inbetween (mousePos.Y) (first.Y) (second.Y)) && (abs (mousePos.X-first.X) <20.)
+    | (first, second) when first.Y = second.Y -> (inbetween (mousePos.X) (first.X) (second.X)) && (abs (mousePos.Y-first.Y) <20.)
+    | _ -> false
+
+let wasWireClicked (mousePos: XYPos) (wire: Wire) : bool= 
+    wire.Points 
+    |> List.pairwise 
+    |> List.exists (wasMouseBetweenPoints mousePos)
+
+let whichWireClicked wires (mousePos: XYPos) : Wire option = 
+    List.tryFind (wasWireClicked mousePos) wires
+
+let unselectAllWires wireModel = 
+    wireModel 
+    |> List.map (fun w -> {w with IsSelected=false; SegmentSelected=None})
+
+let selectWire wire wireModel = 
+    wireModel 
+    |> unselectAllWires 
+    |> List.map (fun w -> if w.Id=wire.Id then {w with IsSelected=true} else w)
+
+let getSegmentClicked (wire: Wire) (mousePos: XYPos) : (XYPos *XYPos) option = 
+    wire.Points 
+    |> List.pairwise 
+    |> List.tryFind (wasMouseBetweenPoints mousePos)
+
+let addSegment (wire: Wire) (segment : (XYPos *XYPos) option) wireModel = 
+    wireModel 
+    |> List.map (fun w -> if w.Id=wire.Id then {w with SegmentSelected=segment} else w)
+
+let wireSelector (fullModel: Model) (mousePos: XYPos) = 
+    let wireClicked = whichWireClicked (fullModel.WX) mousePos   
+    let wireModel = 
+        match wireClicked with 
+        | Some w -> 
+            let segmentClicked = getSegmentClicked w mousePos
+            fullModel.WX 
+            |> selectWire w 
+            |> addSegment w segmentClicked
+        | None -> unselectAllWires (fullModel.WX)
+    {fullModel with WX=wireModel}
+
+let generateDidUserModify newPoints oldPoints oldTruths =   
+    List.map3 
+        (fun newP oldP truth -> 
+            if truth then truth else 
+                (if newP=oldP then false else true)) newPoints oldPoints oldTruths
+
+let moveSegmentToMousePos p1 p2 mousePos = 
+    match p1,p2 with 
+    | _ when p1.X=p2.X -> {p1 with X=mousePos.X}, {p2 with X=mousePos.X}
+    | _ when p1.Y=p2.Y -> {p1 with Y=mousePos.Y}, {p2 with Y=mousePos.Y}
+    | _ -> failwithf "Not a horizontal nor vertical line"
+
+let moveWirePoints (wire: Wire) (mousePos: XYPos) : Wire= 
+    match (wire.SegmentSelected) with 
+    | Some (p1, p2) -> 
+        let newP1, newP2 = moveSegmentToMousePos p1 p2 mousePos
+        let newPoints = 
+            wire.Points 
+            |> List.map 
+                (function
+                    | p when p=p1 -> newP1
+                    | p when p=p2 -> newP2
+                    | p -> p )
+        {wire with Points=newPoints; SegmentSelected=Some (newP1, newP2)}
+    | None -> failwithf "Trying to move a wire without a segment selected"
+   
+let moveWire (mousePos: XYPos) (wire: Wire) : Wire = 
+    if wire.IsSelected 
+    then        
+        let newWire = moveWirePoints wire mousePos
+        let didUserModify = generateDidUserModify (newWire.Points) (wire.Points) (wire.DidUserModifyPoint)
+        {newWire with DidUserModifyPoint=didUserModify}
+    else wire 
+
+let moveWires (wireModel: Wire list) (mousePos: XYPos) = 
+    wireModel
+    |> List.map (moveWire mousePos)
+
+let handleMouseForWires (model: Model) mMsg : Model = 
+    let wireModel : Wire list= 
+        List.map (updateWire (model.Symbol)) (model.WX)
+ 
+    let finalModel = {model with WX=wireModel}
+
+    match mMsg.Op with 
+    | Down -> wireSelector finalModel (mMsg.Pos)
+    | Drag -> {model with WX=moveWires (finalModel.WX) (mMsg.Pos)}
+    | _ -> model
+
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     match msg with
-    // updates symbol through BusWire
     | Symbol sMsg -> 
         let sm,sCmd = Symbol.update sMsg model.Symbol
         {model with Symbol=sm}, Cmd.map Symbol sCmd
 
-    // add new wires given two ports
     | AddWire (port1, port2) -> 
-        // find the input and output ports from both ports
+        //find the input and output ports from both ports
         let matchPorts = 
             // if both ports are inputs or both ports are output, return None, i.e.
             // it is not possible to connect an input port to an input port, and an
@@ -197,53 +357,64 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 Some(p2, p1)
             | _ -> None
 
+        let matchWidths = port1.Width = port2.Width
+
         // if no port combinations possible, return the original model, otherwise
         // add new wire between the ports to the new model
-        match matchPorts with
-        | None -> model, Cmd.none
-        | Some (inputPort, outputPort) ->
-            let wire = {
-                    Id = CommonTypes.ConnectionId (uuid())
-                    SrcPort = inputPort
-                    TargetPort = outputPort
-                    IsDragging = false
-                    DraggingPort = CommonTypes.PortType.Input
-                }
-            let newWires = wire::model.WX
-            {model with WX=newWires}, Cmd.none
+        match matchPorts, matchWidths with
+        | None, _ -> model, Cmd.none
 
-    // sets color of the wires
+        | _, false -> model, Cmd.none
+
+        | Some (targetPort, srcPort), true ->
+            let srcPortPos = srcPort.Pos
+            let targetPortPos = targetPort.Pos
+            let wirePoints = getInitialWirePoints srcPortPos targetPortPos
+            let newWire = makeWireFromPorts (srcPort) (targetPort) wirePoints (srcPort.Width)
+            {model with WX=List.append model.WX [newWire]}, Cmd.none
+
+    | DeleteWire (conId) -> 
+        let wireRemoved = List.filter (fun w -> w.Id <>conId) (model.WX)
+        {model with WX=wireRemoved}, Cmd.none
+
     | SetColor c -> {model with Color = c}, Cmd.none
 
-    // deletes wire in the model
-    | DeleteWire wireId ->
-        let newWX = List.filter (fun wire -> wire.Id <> wireId) model.WX
-        {model with WX = newWX}, Cmd.none
+    | ToggleLegend (conId) -> 
+        let newWireModel = 
+            (model.WX) 
+            |> List.map (fun wire -> 
+                if (wire.Id=conId) 
+                then {wire with ShowLegend = not (wire.ShowLegend)}
+                else wire)
+        {model with WX=newWireModel}, Cmd.none
 
-    // deletes all wires connected to all selected symbols
     | DeleteWiresBySymbol ->
         let newWX = List.filter (fun wire -> not (Symbol.isSymbolSelected model.Symbol wire.SrcPort.HostId || Symbol.isSymbolSelected model.Symbol wire.TargetPort.HostId)) model.WX
         let newSymbolModel, _ = Symbol.update (Symbol.Msg.DeleteSymbol) model.Symbol
         {model with WX = newWX; Symbol=newSymbolModel}, Cmd.none
 
-    // handles mouse messages
     | MouseMsg mMsg -> 
-        model, Cmd.none
+        handleMouseForWires model mMsg, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
 
+
+let findSelectedWire (wModel: Model) : CommonTypes.ConnectionId option = 
+    wModel.WX
+    |> List.tryFind (fun wire -> wire.IsSelected) 
+    |> Option.map (fun wire -> wire.Id)
 
 
 //------------------------------------------------------------------------//
 //-------------------------Other interface functions----------------------//
 //------------------------------------------------------------------------//
 
-// finds any wire that is being dragged (to be deleted in Sheets)
-let findSelectedWire (wModel: Model) : CommonTypes.ConnectionId option = 
-    let selectedWire = List.tryFind (fun wire -> wire.IsDragging) wModel.WX
-    match selectedWire with
-    | None -> None
-    | Some wire -> Some wire.Id
-
-
+let isAnyWireHovered (wModel: Model) (pos: XYPos) : bool = 
+    let findWire = 
+        wModel.WX
+        |> List.tryFind (fun wire -> wasWireClicked pos wire)
+    
+    match findWire with 
+    | None -> false
+    | Some _ -> true
 
 //------------------------------------------------------------------------//
 //---------------------------interface to Issie---------------------------//
@@ -256,10 +427,3 @@ let extractWires (wModel: Model) : CommonTypes.Component list =
     failwithf "Not implemented"
 let updateSymbolModelWithComponent (symModel: Model) (comp:CommonTypes.Component) =
     failwithf "Not Implemented"
-
-
-
-    
-
-
-
