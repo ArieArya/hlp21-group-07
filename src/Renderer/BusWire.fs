@@ -364,7 +364,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         | _, false -> model, Cmd.none
 
-        | Some (srcPort, targetPort), true ->
+        | Some (targetPort, srcPort), true ->
             let srcPortPos = srcPort.Pos
             let targetPortPos = targetPort.Pos
             let wirePoints = getInitialWirePoints srcPortPos targetPortPos
