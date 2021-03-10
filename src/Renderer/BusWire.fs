@@ -41,7 +41,7 @@ type Msg =
     | ToggleLegend of (CommonTypes.ConnectionId)
     | SetColor of CommonTypes.HighLightColor
     | MouseMsg of MouseT
-    | DeleteWiresBySymbol 
+    | DeleteWiresBySymbol
 
 
 
@@ -81,14 +81,14 @@ type LineRenderProps = {
     StrokeWidthP: string 
     }
 
-let makeSVGLine color width (startP, endP) = 
+let makeSVGLine color (startP, endP) = 
     line [
         X1 startP.X
         Y1 startP.Y
         X2 endP.X
         Y2 endP.Y
         SVGAttr.Stroke color
-        SVGAttr.StrokeWidth (sprintf "%ipx" width)  ] []
+        SVGAttr.StrokeWidth (sprintf "2px")  ] []
 
 let makeText (textIn: string) (pos: XYPos) (size: string) (col: string) = 
     text [ 
@@ -100,15 +100,16 @@ let makeText (textIn: string) (pos: XYPos) (size: string) (col: string) =
                 FontSize size
                 FontWeight "Bold"
                 Fill col // font color
+                UserSelect UserSelectOptions.None
                 ]
             ] [str textIn]
 
-let makeWireAnnotation (wirePoints: XYPos list) (width: int) col = //Create width annotation
+let makeWireAnnotation (wirePoints: XYPos list) (width: int) col = // Create width annotation
     let srcP = wirePoints.[0]
     let firstP = wirePoints.[1]
     let xPos = srcP.X + (firstP.X-srcP.X)/2.
     let widthText = makeText (sprintf "%i" width) {X=xPos; Y=srcP.Y-20.} "15px" col
-    let widthLine = makeSVGLine col 2 ({ X =xPos-1.; Y=srcP.Y-10.}, {X =xPos+1.; Y=srcP.Y+10.})
+    let widthLine = makeSVGLine col ({ X =xPos-1.; Y=srcP.Y-10.}, {X =xPos+1.; Y=srcP.Y+10.})
     [widthText; widthLine]
 
 let renderWire = // Return wire svg
@@ -120,19 +121,19 @@ let renderWire = // Return wire svg
                 else []
             props.Points 
             |> List.pairwise //now we have points as pairs
-            |> List.map (makeSVGLine (props.ColorP) (props.Width))
+            |> List.map (makeSVGLine (props.ColorP))
             |> fun svgline -> g [] (List.append svgline wireAnnotation)    
             )   
 
-let requiresThreeLines srcPortPos tgtPortPos = //helper to determine whether target port is left of source port
+let requiresThreeLines srcPortPos tgtPortPos = // helper to determine whether target port is left of source port
     srcPortPos.X <= tgtPortPos.X 
 
-let inbetween a b c = //check if a is between b and c
+let inbetween a b c = // check if a is between b and c
     if b > c 
     then (a<b)&&(a>c)
     else (a>b)&&(a<c)
 
-let selectSide oldVal srcVal tgtVal = //helper to ensure wire does not go further than src or tgt port position
+let selectSide oldVal srcVal tgtVal = // helper to ensure wire does not go further than src or tgt port position
     if oldVal >= tgtVal 
     then tgtVal 
     else srcVal 
@@ -196,15 +197,16 @@ let getDidUser newPoints oldPoints oldDidUserModify = //work out if algorithm ha
     else oldDidUserModify
 
 let updateWire (symbolModel: Symbol.Model) (wire: Wire) : Wire = 
-    let srcPortPos = wire.SrcPort.Pos
-    let tgtPortPos = wire.TargetPort.Pos
+    // get new source port pos
+    let srcPortPos = Symbol.symbolPortPos (symbolModel) (wire.SrcPort.Id)
+    let tgtPortPos = Symbol.symbolPortPos (symbolModel) (wire.TargetPort.Id)
     let newPoints = createNewPoints srcPortPos tgtPortPos (wire.Points) (wire.DidUserModifyPoint)// changeInandOut (wire.Points) srcPortPos tgtPortPos
     let didUser = getDidUser newPoints (wire.Points) (wire.DidUserModifyPoint)
     {wire with Points= newPoints; DidUserModifyPoint=didUser}
 
 let view (model:Model) (dispatch: Dispatch<Msg>)=    
     let wireModel : Wire list= 
-        List.map (updateWire (model.Symbol)) (model.WX) //(fun wire -> {wire with Points=getWirePoints (model.Symbol) (wire.SrcPortId) (wire.TgtPortId)})
+        List.map (updateWire (model.Symbol)) (model.WX) 
     let wires = 
         wireModel
         |> List.map (fun w ->
@@ -325,7 +327,7 @@ let moveWires (wireModel: Wire list) (mousePos: XYPos) =
 
 let handleMouseForWires (model: Model) mMsg : Model = 
     let wireModel : Wire list= 
-        List.map (updateWire (model.Symbol)) (model.WX) //(fun wire -> {wire with Points=getWirePoints (model.Symbol) (wire.SrcPortId) (wire.TgtPortId)})
+        List.map (updateWire (model.Symbol)) (model.WX)
  
     let finalModel = {model with WX=wireModel}
 
@@ -386,9 +388,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 else wire)
         {model with WX=newWireModel}, Cmd.none
 
-    | DeleteWiresBySymbol -> 
-        let newWireModel = (model.WX) |> List.filter (fun wire -> not (wire.IsSelected))
-        {model with WX=newWireModel}, Cmd.none
+    | DeleteWiresBySymbol ->
+        let newWX = List.filter (fun wire -> not (Symbol.isSymbolSelected model.Symbol wire.SrcPort.HostId || Symbol.isSymbolSelected model.Symbol wire.TargetPort.HostId)) model.WX
+        let newSymbolModel, _ = Symbol.update (Symbol.Msg.DeleteSymbol) model.Symbol
+        {model with WX = newWX; Symbol=newSymbolModel}, Cmd.none
 
     | MouseMsg mMsg -> 
         handleMouseForWires model mMsg, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
@@ -399,6 +402,11 @@ let findSelectedWire (wModel: Model) : CommonTypes.ConnectionId option =
     |> List.tryFind (fun wire -> wire.IsSelected) 
     |> Option.map (fun wire -> wire.Id)
 
+
+//------------------------------------------------------------------------//
+//-------------------------Other interface functions----------------------//
+//------------------------------------------------------------------------//
+
 let isAnyWireHovered (wModel: Model) (pos: XYPos) : bool = 
     let findWire = 
         wModel.WX
@@ -407,15 +415,6 @@ let isAnyWireHovered (wModel: Model) (pos: XYPos) : bool =
     match findWire with 
     | None -> false
     | Some _ -> true
-
-
-
-
-//------------------------------------------------------------------------//
-//-------------------------Other interface functions----------------------//
-//------------------------------------------------------------------------//
-
-
 
 //------------------------------------------------------------------------//
 //---------------------------interface to Issie---------------------------//

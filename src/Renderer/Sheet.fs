@@ -459,7 +459,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 // initialize DragBox and DragWire
                 let newDragBox = {Edge1 = pos; Edge2 = pos; isDragging = true}
                 let newDragWire = {SrcEdge = pos; TargetEdge = pos; isDragging = false; DraggingPort=CommonTypes.PortType.Input}
-                {model with DragBox=newDragBox; DragWire=newDragWire}, Cmd.none
+                let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg mMsg) model.Wire
+                {model with Wire=updatedWire; DragBox=newDragBox; DragWire=newDragWire}, Cmd.none
 
             | Some port, false ->
                 // initialize DragBox
