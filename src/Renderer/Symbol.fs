@@ -5,182 +5,275 @@ open Browser
 open Elmish
 open Elmish.React
 open Helpers
-
+open type CommonTypes.ComponentType
 //------------------------------------------------------------------------//
 //-------------------------------Symbol Types-----------------------------//
 //------------------------------------------------------------------------//
 
-type Symbol =
+/// Model to generate one symbol (skeleton). Id is a unique Id 
+/// for the symbol shared with Issie Component type.
+/// The real type will obviously be much larger.
+/// Complex information that never changes (other than Id) should 
+/// probably not be here, but looked up via some function
+/// from a more compact form, so that comparison of two Symbols to
+/// determine are they the same is fast.
+
+type BoundingBox = 
+    {
+        TopLeft : XYPos
+        BottomLeft : XYPos
+        TopRight : XYPos
+        BottomRight : XYPos
+    }
+
+type Symbol = 
     {
         Pos: XYPos
         LastDragPos : XYPos
         IsDragging : bool
-        isSelected: bool
-        isHovered: bool
+        IsSelected: bool
+        IsHovered: bool
         Id : CommonTypes.ComponentId
+        Type: CommonTypes.ComponentType
         Label: string
-        InputPorts: CommonTypes.Port list
-        OutputPorts: CommonTypes.Port list
-        ExpandedPort: CommonTypes.PortType option
-        Vertices: XYPos list
-    }
-
-
-
-//------------------------------------------------------------------------//
-//------------------Skeleton Model Type for symbols-----------------------//
-//------------------------------------------------------------------------//
+        InputPorts : CommonTypes.Port list
+        OutputPorts : CommonTypes.Port list
+        ExpandedPort: CommonTypes.PortType Option
+        BoundingBox : BoundingBox
+        H: int
+        W: int
+    }    
 
 type Model = Symbol list
 
 
+//----------------------------Message Type-----------------------------------//
 
-//------------------------------------------------------------------------//
-//----------------------------Message Type--------------------------------//
-//------------------------------------------------------------------------//
-
+/// Messages to update symbol model
+/// These are OK for the demo - but possibly not the correct messages for
+/// a production system, where we need to drag groups of symbols as well,
+/// and also select and deselect symbols, and specify real symbols, not circles
 type Msg =
+    /// Mouse info with coords adjusted form top-level zoom
     | MouseMsg of MouseT
-    | StartDragging of sId : CommonTypes.ComponentId * pagePos: XYPos
-    | Dragging of sId : CommonTypes.ComponentId * pagePos: XYPos
-    | EndDragging of sId : CommonTypes.ComponentId
-    | AddSymbol of XYPos * int * string * XYPos list * int * int 
-    | DeleteSymbol 
-    | UpdateSymbolModelWithComponent of CommonTypes.Component 
+    | StartDraggingSymbol of sId : CommonTypes.ComponentId * pagePos: XYPos 
+    /// coords not adjusted for top-level zoom
+    | DraggingSymbol of sId : CommonTypes.ComponentId * pagePos: XYPos
+        /// coords not adjusted for top-level zoom
+    | EndDraggingSymbol of sId : CommonTypes.ComponentId
+    | AddSymbol of CommonTypes.ComponentType * busWidth: int * XYPos 
+    | DeleteSymbol
+    | UpdateSymbolModelWithComponent of CommonTypes.Component // Issie interface
     | BoxSelected of XYPos * XYPos
-    | SymbolHovering of XYPos
-    | ExpandPort of CommonTypes.PortType * int
+    | SymbolHovering of XYPos //not done
+    | ExpandPort of CommonTypes.PortType * int //not done
 
+//---------------------------------helper types and functions----------------//
 
-
-//------------------------------------------------------------------------//
-//-----------------------Helper types and functions-----------------------//
-//------------------------------------------------------------------------//
-
-/// Radius of ports
-let portRadius = 
-    5.
-
-/// Radius of expanded ports
-let expandedPortRadius = 
-    7.
-
-/// Finds the difference between two XYPos components
 let posDiff a b =
     {X=a.X-b.X; Y=a.Y-b.Y}
 
-/// Adds two XYPos components
 let posAdd a b =
     {X=a.X+b.X; Y=a.Y+b.Y}
 
-/// Converts x and y integers to XYPos
 let posOf x y = {X=x;Y=y}
 
-/// Calculates the input port position for a symbol
-let posOfInput (vertices: XYPos list) (index: int) (numInputs: int) = 
-    let v1 = vertices.[0]
-    let v4 = vertices.[3]
-
-    let curX = v1.X
-    let curY = 
-        (float(index) / float(numInputs + 1)) * (v4.Y - v1.Y) + v1.Y
-
-    {X = curX; Y=curY}
-
-/// Calculates the output port position for a symbol
-let posOfOutput (vertices: XYPos list) (index: int) (numInputs: int) = 
-    let v2 = vertices.[1]
-    let v3 = vertices.[2]
-
-    let curX = v2.X
-    let curY = 
-        (float(index) / float(numInputs + 1)) * (v3.Y - v2.Y) + v2.Y
-
-    {X = curX; Y=curY}
-
-/// Converts list of coordinates to a string for SVG Polygon or Polyline. For example,
-/// [(1, 2); (3, 4); (5, 6)] becomes "1,2 3,4 5,6", which is the correct SVG format
-let convertPoly inpList = 
-    string(inpList)
-    |> String.collect (fun c -> if c = '(' || c = ')' || c = '[' || c = ']' then ""
-                                elif c = ';' then " "
-                                elif c = ' ' then ""
-                                else string c)
-
-
-
-//------------------------------------------------------------------------//
-//---------------------Skeleton Message type for symbols------------------//
-//------------------------------------------------------------------------//
-
-/// Creates New Input Port
-let createNewInputPort (portNumber: int) (pos: XYPos) (hostId: CommonTypes.ComponentId) (portWidth: int) : CommonTypes.Port = 
+let calcBoundingBox (pos: XYPos) (h: int) (w: int): BoundingBox =
+    let topLeft = {
+        X = pos.X - 0.5*(float w)
+        Y = pos.Y - 0.5*(float h)
+    }
+    let bottomLeft = {
+        X = pos.X - 0.5*(float w)
+        Y = pos.Y + 0.5*(float h)
+    }
+    let topRight = {
+        X = pos.X + 0.5*(float w)
+        Y = pos.Y - 0.5*(float h)
+    }
+    let bottomRight = {
+        X = pos.X + 0.5*(float w)
+        Y = pos.Y + 0.5*(float h)
+    }
     {
-        Id = (Helpers.uuid()) 
-        PortType = CommonTypes.PortType.Input
-        PortNumber = Some portNumber
-        HostId = hostId
-        Pos = pos
-        Width = portWidth
+        BottomLeft = bottomLeft
+        TopLeft = topLeft
+        BottomRight = bottomRight
+        TopRight = topRight
     }
 
-/// Creates New Output Port
-let createNewOutputPort (portNumber: int) (pos: XYPos) (hostId: CommonTypes.ComponentId) (portWidth: int) : CommonTypes.Port = 
+let BoundingBoxToStr (boundingBox: BoundingBox) : string =
+    sprintf "%f,%f %f,%f %f,%f %f,%f" 
+        boundingBox.BottomLeft.X 
+        boundingBox.BottomLeft.Y 
+        boundingBox.TopLeft.X 
+        boundingBox.TopLeft.Y 
+        boundingBox.TopRight.X
+        boundingBox.TopRight.Y
+        boundingBox.BottomRight.X 
+        boundingBox.BottomRight.Y 
+
+let symInModel (symMod: Model) (sId: CommonTypes.ComponentId) : Symbol= 
+    List.tryFind (fun sym -> sym.Id = sId) symMod
+    |> function 
+        | Some symbol -> symbol
+        | None -> failwithf "Symbol not found in model"
+
+let portInModel (symMod: Model) (pId: string) : CommonTypes.Port = 
+    symMod
+    |> List.collect (fun sym -> sym.InputPorts @ sym.OutputPorts)
+    |> List.tryFind (fun port -> port.Id = pId)
+    |> function
+       | Some port -> port
+       | None -> failwithf "Port not found in model"
+
+let unwrapCompId (CommonTypes.ComponentId x) = x
+
+let posInSymbol (sym: Symbol) (pos:XYPos) : bool= 
+    let bBox = sym.BoundingBox
+    (pos.X >= bBox.BottomLeft.X)&&(pos.Y <= bBox.BottomLeft.Y)&&(pos.X <= bBox.TopRight.X)&&(pos.Y >= bBox.TopRight.Y)
+
+//-----------------------------Skeleton Model Type for symbols----------------//
+
+//-----------------------Skeleton Message type for symbols---------------------//
+
+/// Symbol creation: a unique Id is given to the symbol, found from uuid.
+/// The parameters of this function must be enough to specify the symbol completely
+/// in its initial form. This is called by the AddSymbol message and need not be exposed.
+
+let portPos (inOrOut: CommonTypes.PortType) (pos: XYPos) (h: int) (w:int) (numberOfPorts: int) (portNumber: int): XYPos =
     {
-        Id = (Helpers.uuid()) 
-        PortType = CommonTypes.PortType.Output
+            X = if (inOrOut = CommonTypes.PortType.Input) then 
+                    pos.X - (float w/2.)
+                else
+                    pos.X + (float w/2.)
+            Y = pos.Y - (float h/2.) + (float (h/(numberOfPorts + 1) * (portNumber+1)))
+    }    
+
+let newPortTemplate (inOrOut: CommonTypes.PortType) (hostId: CommonTypes.ComponentId) (portNumber: int) (busWidth: int) (pos: XYPos) (h:int) (w:int)
+    (numberOfPorts: int): CommonTypes.Port=
+    {
+        Id = Helpers.uuid()
+        // For example, an And would have input ports 0 and 1, and output port 0.
+        // If the port is used in a Connection record as Source or Target, the Number is None. 
         PortNumber = Some portNumber
-        HostId = hostId
-        Pos = pos
-        Width = portWidth
+        PortType = inOrOut
+        HostId = unwrapCompId hostId
+        Pos = portPos inOrOut pos h w numberOfPorts portNumber
+        Width = busWidth //new field used to add bus width of ports
     }
 
-/// Creates New Symbol
-let createNewSymbol (pos:XYPos) (portWidth:int) (compLabel:string) (vertices:XYPos list) (inputPortCount: int) (outputPortCount: int)=
-    let symbolId = CommonTypes.ComponentId (Helpers.uuid())
-    let totalPortCount = inputPortCount + outputPortCount
+let newSymbolTemplate (comptype: CommonTypes.ComponentType) (pos:XYPos) (h: int) (w: int) (numberOfInputs: int) (numberOfOutputs: int) (busWidth: int): Symbol =
     {
         Pos = pos
         LastDragPos = {X=0. ; Y=0.} // initial value can always be this
         IsDragging = false // initial value can always be this
-        isSelected = false
-        isHovered = false
-        Id = symbolId // create a unique id for this symbol
-        Label = compLabel
+        IsSelected = false
+        IsHovered = false
+        Id = CommonTypes.ComponentId (Helpers.uuid()) // create a unique id for this symbol
+        Type = comptype
+        Label = ""
         InputPorts = 
-            [1..inputPortCount]
-            |> List.map (fun idx -> createNewInputPort idx (posOfInput vertices idx inputPortCount) symbolId portWidth) // input port id
-
+            [0..(numberOfInputs-1)]
+            |> List.map (fun x -> 
+                (newPortTemplate CommonTypes.PortType.Input (CommonTypes.ComponentId (Helpers.uuid())) x busWidth pos h w numberOfInputs))
         OutputPorts = 
-            [(inputPortCount+1)..totalPortCount]
-            |> List.map (fun idx -> createNewOutputPort idx (posOfOutput vertices (idx - inputPortCount) outputPortCount) symbolId portWidth) // output port id
-
+            [0..(numberOfOutputs-1)]
+            |> List.map (fun x -> 
+                (newPortTemplate CommonTypes.PortType.Output (CommonTypes.ComponentId (Helpers.uuid())) x busWidth pos h w numberOfOutputs))
         ExpandedPort = None
-        Vertices = vertices
+        BoundingBox = calcBoundingBox pos h w
+        H = h
+        W = w
     }
 
-/// Initialization
+let createNewSymbol (comptype: CommonTypes.ComponentType) (busWidth: int) (pos:XYPos)  : Symbol =
+    match comptype with 
+    | Input busWidthx | Output busWidthx -> 
+        newSymbolTemplate comptype pos 40 50 1 1 busWidth
+    | BusSelection (outWidth, outLSBit) ->
+        newSymbolTemplate comptype pos 40 50 1 1 busWidth
+    | Constant (busWidthx, value) -> 
+        newSymbolTemplate comptype pos 40 50 1 1 busWidth
+    | IOLabel | Not ->
+        newSymbolTemplate comptype pos 40 50 1 1 busWidth
+    | And | Or | Xor | Nand | Nor | Xnor ->
+        newSymbolTemplate comptype pos 60 50 2 1 busWidth
+    | Decode4 ->
+        newSymbolTemplate comptype pos 200 80 2 4 busWidth
+    | Mux2 -> 
+        newSymbolTemplate comptype pos 60 50 2 1 busWidth
+    | Demux2 ->
+        newSymbolTemplate comptype pos 60 50 1 2 busWidth
+    | NbitsAdder busWidthx -> 
+        newSymbolTemplate comptype pos 150 100 3 2 busWidth
+    | MergeWires -> 
+        newSymbolTemplate comptype pos 60 70 2 1 busWidth
+    | SplitWire busWidthx ->
+        newSymbolTemplate comptype pos 60 70 1 2 busWidth
+    | DFF ->
+        newSymbolTemplate comptype pos 60 50 2 1 busWidth
+    | DFFE -> 
+        newSymbolTemplate comptype pos 100 80 3 1 busWidth
+    | Register busWidthx ->
+        newSymbolTemplate comptype pos 100 120 2 1 busWidth
+    | RegisterE busWidthx -> 
+        newSymbolTemplate comptype pos 100 120 3 1 busWidth
+    | AsyncROM mem ->
+        newSymbolTemplate comptype pos 150 100 1 1 busWidth
+    | ROM mem ->
+        newSymbolTemplate comptype pos 150 100 2 1 busWidth
+    | RAM mem ->
+        newSymbolTemplate comptype pos 150 160 4 1 busWidth
+    |_ -> failwith "Invalid Component Type"    
+
+/// Dummy function for test. The real init would probably have no symbols.
 let init () =
     [], Cmd.none
 
-/// Update function to update Symbol models
+/// update function which displays symbols
 let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     match msg with
-
-    // Adds new symbol to model
-    | AddSymbol (pos, portWidth, compName, vertices, numInputPorts, numOutputPorts) -> 
-        (createNewSymbol pos portWidth compName vertices numInputPorts numOutputPorts) :: model, Cmd.none
-
-    // Deletes symbol from model
+    | AddSymbol (comptype, busWidth, pos) -> 
+        createNewSymbol comptype busWidth pos :: model, Cmd.none
     | DeleteSymbol -> 
-        List.filter (fun sym -> not sym.isSelected) model, Cmd.none
-
-    // Begin dragging symbol in model
-    | StartDragging (sId, pagePos) ->
+        List.filter (fun sym -> not sym.IsSelected) model, Cmd.none
+    | BoxSelected (pos1, pos2) -> 
         model
         |> List.map (fun sym ->
-            if (sId <> sym.Id && not sym.isSelected) then
-                sym
+            let bBox = sym.BoundingBox
+            let x1 = pos1.X
+            let y1 = pos1.Y
+            let x2 = pos2.X
+            let y2 = pos2.Y
+            let cor1x, cor1y, cor2x, cor2y =
+                if (x1 < x2)&&(y1 < y2) then
+                    x1, y1, x2, y2
+                elif (x1 > x2)&&(y1 > y2) then
+                    x2, y2, x1, y1
+                elif (x1 < x2)&&(y1 > y2)then
+                    x1, y2, x2, y1
+                else
+                    x2, y1, x1, y2
+            let inRegion = 
+                (bBox.TopLeft.X >= cor1x)&&(bBox.TopLeft.Y >= cor1y)&&(bBox.BottomRight.X <= cor2x)&&(bBox.BottomRight.Y <= cor2y)
+            if inRegion then 
+                { sym with 
+                    IsSelected = true
+                }
+            else
+                { sym with 
+                    IsSelected = false
+                }
+        )
+        ,Cmd.none
+    | StartDraggingSymbol (sId, pagePos) ->
+        model
+        |> List.map (fun sym ->
+            if (sId <> sym.Id && not sym.IsSelected)then
+                {sym with 
+                    IsDragging = false
+                }
             else
                 { sym with
                     LastDragPos = pagePos
@@ -189,499 +282,538 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         )
         , Cmd.none
 
-    // Drag symbol to page position pagePos
-    | Dragging (rank, pagePos) ->
+    | DraggingSymbol (rank, pagePos) ->
         model
         |> List.map (fun sym ->
             if (rank <> sym.Id && not sym.IsDragging) then
                 sym
-                
             else
-                // finds position difference
                 let diff = posDiff pagePos sym.LastDragPos
-
-                // finds new position of symbol
-                let curPos = posAdd sym.Pos diff                
-
-                // update vertices of symbol
-                let curVertices = 
-                    sym.Vertices
-                    |> List.map (fun x -> posAdd x diff)
-
-                // obtain number of input ports in the symbol
-                let inputPortLength = 
-                    sym.InputPorts.Length
-
-                // obtain number of output ports in the symbol
-                let outputPortLength = 
-                    sym.OutputPorts.Length
-
-                // obtains new position of the input ports
-                let newInputPorts = 
-                    sym.InputPorts
-                    |> List.mapi (fun i inpPort -> {inpPort with Pos = posOfInput curVertices (i+1) inputPortLength})
-
-                // obtains new position of the output ports
-                let newOutputPorts = 
-                    sym.OutputPorts
-                    |> List.mapi (fun i outPort -> {outPort with Pos = posOfOutput curVertices (i+1) outputPortLength})
-
-                // update symbol with new positions and vertices
+                let numberOfInputs = List.length sym.InputPorts
+                let numberOfOutputs = List.length sym.OutputPorts
                 { sym with
-                    Pos = curPos
-                    InputPorts = newInputPorts
-                    OutputPorts = newOutputPorts
+                    Pos = posAdd sym.Pos diff
+                    BoundingBox = calcBoundingBox (posAdd sym.Pos diff) sym.H sym.W
                     LastDragPos = pagePos
-                    Vertices = curVertices
+                    InputPorts = 
+                        sym.InputPorts
+                        |> List.mapi (fun i port -> 
+                            {port with 
+                                Pos = (portPos CommonTypes.PortType.Input sym.Pos sym.H sym.W numberOfInputs i)
+                            })
+                    OutputPorts = 
+                        sym.OutputPorts
+                        |> List.mapi (fun i port -> 
+                            {port with 
+                                Pos = (portPos CommonTypes.PortType.Output sym.Pos sym.H sym.W numberOfOutputs i)
+                            })
                 }
-        ), Cmd.none
+        )
+        , Cmd.none
 
-    // Stop dragging symbol
-    | EndDragging sId ->
+    | EndDraggingSymbol sId ->
         model
         |> List.map (fun sym ->
-            if (sId <> sym.Id && not sym.isSelected) then 
+            if (sId <> sym.Id && not sym.IsDragging) then 
                 sym
             else
                 { sym with
-                    IsDragging = false
+                    IsDragging = false 
                 }
-        ), Cmd.none
-
-    // Unused Mouse Messages
-    | MouseMsg _ -> model, Cmd.none 
-
-    // Mark all symbols covered by the mouse select box as isSelected = true
-    | BoxSelected (pos1, pos2) ->
-        let startX, startY, endX, endY = 
-            let x1 = pos1.X
-            let x2 = pos2.X
-            let y1 = pos1.Y
-            let y2 = pos2.Y
-
-            if x1 <= x2 && y1 <= y2 then x1, y1, x2, y2
-            elif x1 <= x2 && y1 > y2 then x1, y2, x2, y1
-            elif x1 > x2 && y1 <= y2 then x2, y1, x1, y2
-            else x2, y2, x1, y1
-
-        let symbolSelected (symPos: XYPos) = 
-            startX <= symPos.X && endX >= symPos.X && startY <= symPos.Y && endY >= symPos.Y
-
-        model
-        |> List.map (fun sym -> 
-                        if symbolSelected sym.Pos then {sym with isSelected=true} 
-                        else {sym with isSelected=false}), Cmd.none
-
-    // Mark all symbols that are being hovered by mouse at pos as isHovered = true
+        )
+        , Cmd.none
     | SymbolHovering pos ->
         model
-        |> List.map (fun sym -> 
-                        let vertices = sym.Vertices
-
-                        // assume square vertices
-                        let v1 = vertices.[0]
-                        let v2 = vertices.[1]
-                        let v3 = vertices.[2]
-
-                        // perform calculation on bounding box
-                        if pos.X >= v1.X && pos.X <= v2.X && pos.Y >= v2.Y && pos.Y <= v3.Y
-                        then {sym with isHovered=true}
-                        else {sym with isHovered=false}
-                    ), Cmd.none    
-
-    // Set the corresponding expanded port as the value of ExpandedPorts. This is used for Wire Dragging, in
-    // which if an output port is dragged, input ports with the same bus width will be expanded to indicate 
-    // possible connection, and vice versa.
+        |> List.map (fun sym ->
+            if (posInSymbol sym pos) then
+                { sym with
+                    IsHovered = true
+                }
+            else
+                { sym with
+                    IsHovered = false 
+                }
+        )
+        , Cmd.none
     | ExpandPort (portType, portWidth) ->
         model
         |> List.map (fun sym -> 
-                        // assume all input ports in the same symbol has the same width
-                        if portWidth = sym.InputPorts.[0].Width then {sym with ExpandedPort = Some portType} 
-                        else sym
-                    ), Cmd.none
+            if (sym.InputPorts.[0].Width = portWidth) || (sym.OutputPorts.[0].Width = portWidth) then
+                { sym with
+                    ExpandedPort = Some portType //assuming all ports of that type within that symbol have the same bus width
+                }
+            else
+                sym
+        )
+        , Cmd.none
 
+    | MouseMsg _ -> model, Cmd.none // allow unused mouse messags
+    | _ -> failwithf "Not implemented"
 
+//----------------------------View Function for Symbols----------------------------//
 
-    // No other messages
-    | _ -> model, Cmd.none
-
-
-
-//------------------------------------------------------------------------//
-//-------------------------View Function for Symbols----------------------//
-//------------------------------------------------------------------------//
-
-/// Props information for rendering shape
-type private RenderShapeProps =
+/// Input to react component (which does not re-evaluate when inputs stay the same)
+/// This generates View (react virtual DOM SVG elements) for one symbol
+type private RenderSymbolProps =
     {
-        Shape : Symbol 
+        Symbol : Symbol // name works for the demo!
         Dispatch : Dispatch<Msg>
-        key: string 
+        Key: string // special field used by react to detect whether lists have changed, set to symbol Id
     }
 
-/// Renders a single symbol including its ports, portNumber, and label
-let private renderShape =
+
+let notTriangle (bBox: BoundingBox) (pos: XYPos) (color: string): ReactElement List =
+    [polygon
+        [
+            SVGAttr.Points 
+                (sprintf "%f, %f %f, %f %f, %f" 
+                    bBox.BottomRight.X pos.Y 
+                    bBox.BottomRight.X (pos.Y - 10.)
+                    (bBox.BottomRight.X + 10.) pos.Y 
+                )
+            SVGAttr.Fill color
+            SVGAttr.Stroke "black"
+            SVGAttr.StrokeWidth 1
+        ][]
+    ]
+
+let wireLines (bBox: BoundingBox) (pos: XYPos) (h: int) (splitOrMerge: bool): ReactElement List= 
+    [line
+        [
+            X1 (if splitOrMerge then
+                    bBox.BottomRight.X; 
+                else 
+                    bBox.BottomLeft.X;
+                )
+            Y1 (bBox.BottomLeft.Y - (float h)/3.); 
+            X2 pos.X; 
+            Y2 (bBox.BottomLeft.Y - (float h)/3.); 
+            Style [Stroke "Black"]
+        ][];
+    line
+        [
+            X1 (if splitOrMerge then
+                    bBox.BottomRight.X; 
+                else 
+                    bBox.BottomLeft.X;
+                ) 
+            Y1 (bBox.BottomLeft.Y - (float h)*2./3.); 
+            X2 pos.X; 
+            Y2 (bBox.BottomLeft.Y - (float h)*2./3.); 
+            Style [Stroke "Black"]
+        ][];
+    line
+        [
+            X1 pos.X; 
+            Y1 (bBox.BottomLeft.Y - (float h)*2./3.);
+            X2 pos.X; 
+            Y2 (bBox.BottomLeft.Y - (float h)/3.); 
+            Style [Stroke "Black"]
+            ][];
+    line
+        [
+            X1 pos.X;
+            Y1 pos.Y;
+            X2 (if splitOrMerge then
+                    bBox.BottomLeft.X; 
+                else 
+                    bBox.BottomRight.X;
+                )
+            Y2 pos.Y;
+            Style [Stroke "Black"]
+        ][]
+    ]
+
+let private renderSymbol =
     FunctionComponent.Of(
-        fun (props : RenderShapeProps) ->
+        fun (props : RenderSymbolProps) ->
             let handleMouseMove =
                 Hooks.useRef(fun (ev : Types.Event) ->
                     let ev = ev :?> Types.MouseEvent
-                    Dragging(props.Shape.Id, posOf ev.pageX ev.pageY)
+                    // x,y coordinates here do not compensate for transform in Sheet
+                    // and are wrong unless zoom=1.0 MouseMsg coordinates are correctly compensated.
+                    DraggingSymbol(props.Symbol.Id, posOf ev.pageX ev.pageY)
                     |> props.Dispatch
                 )
-
-            // if symbol is dragged or selected, set the color to "#4fbdbd" (blue-green), else "#c7c9c9" (gray)
-            let color =
-                if props.Shape.IsDragging || props.Shape.isSelected then
-                    "#4fbdbd"
+            let symbolColor =
+                if props.Symbol.IsDragging then
+                    "lightblue"
+                elif props.Symbol.IsSelected then
+                    "lightgreen"
                 else
-                    "#c7c9c9"
+                    "lightgrey"
+            let bBox = props.Symbol.BoundingBox
+            let bBoxStr =
+                bBox
+                |> BoundingBoxToStr
             
-            // input and output radius corresponds to the radius of the input and output ports. If an input port
-            // is being dragged, all output ports with the same width will have a bigger radius to indicate
-            // possible connection, and vice versa.
-            // portFillInput and portFillOutput shows the fill color of the ports in a symbol. If the symbol is 
-            // hovered, the fill color is "#2f5e5e" (dark blue), otherwise it is none (hidden). Thus, ports are 
-            // only shown if the symbol is hovered.
-            let inputRadius, outputRadius, portFillInput, portFillOutput = 
-                match props.Shape.ExpandedPort, props.Shape.isHovered with
-                | None, true -> portRadius, portRadius, "#2f5e5e", "#2f5e5e"
-                | None, false -> portRadius, portRadius, "none", "none"
+            let inputPortColor, outputPortColor, inputPortRadius, outputPortRadius = 
+                match props.Symbol.ExpandedPort, props.Symbol.IsHovered with
                 | Some CommonTypes.PortType.Input, true -> 
-                    expandedPortRadius, portRadius, "#2f5e5e", "#2f5e5e"
+                    "lightblue", "lightblue", 8., 5. 
                 | Some CommonTypes.PortType.Input, false -> 
-                    expandedPortRadius, portRadius, "#2f5e5e", "none"
+                    "lightblue", "grey", 8., 5.
                 | Some CommonTypes.PortType.Output, true ->
-                    portRadius, expandedPortRadius, "#2f5e5e", "#2f5e5e"
+                    "lightblue", "lightblue", 5., 8.
                 | Some CommonTypes.PortType.Output, false ->
-                    portRadius, expandedPortRadius, "none", "#2f5e5e"  
+                    "grey", "lightblue", 5., 8.   
+                | None, true -> "lightblue", "lightblue", 5., 5. 
+                | None, false -> "grey", "grey", 5., 5.
 
-            // obtains the list of coordinates of each vertices of symbol in a single string (for SVG Polygon)
-            let polyString = 
-                props.Shape.Vertices
-                |> List.map (fun xypos -> (xypos.X, xypos.Y))
-                |> convertPoly
+            let createPortShapeAndLabel (i:int) (el: string) (color: string) (radius: float) (portType: CommonTypes.PortType)= 
+                g[][circle [
+                            if portType = CommonTypes.PortType.Input then
+                                Cx props.Symbol.InputPorts.[i].Pos.X; 
+                                Cy props.Symbol.InputPorts.[i].Pos.Y;
+                            else
+                                Cx props.Symbol.OutputPorts.[i].Pos.X; 
+                                Cy props.Symbol.OutputPorts.[i].Pos.Y;
+                            R radius
+                            SVGAttr.Fill color
+                            SVGAttr.Stroke color
+                            SVGAttr.StrokeWidth 1
+                        ][];
 
-            // find position of symbol label
-            let textPosition = 
-                let v1 = props.Shape.Vertices.[0]
-                let v2 = props.Shape.Vertices.[1]
-
-                {X=(v1.X + v2.X)/2.; Y=v2.Y + 15.}
-
-            // obtains the label of the symbol (or component)
-            let compLabel = 
-                props.Shape.Label
-            
-            // obtains the number of input ports and output ports in the symbol
-            let inpPortsLength = props.Shape.InputPorts.Length
-            let outPortsLength = props.Shape.OutputPorts.Length
-
-            [   
-                // draw main component using SVG polygon               
-                polygon [
-                    OnMouseUp (fun ev -> 
-                            document.removeEventListener("mousemove", handleMouseMove.current)
-                            EndDragging props.Shape.Id
-                            |> props.Dispatch
-                    )
-
-                    OnMouseDown (fun ev -> 
-                        // See note above re coords wrong if zoom <> 1.0
-                        StartDragging (props.Shape.Id, posOf ev.pageX ev.pageY)
-                        |> props.Dispatch
-                        document.addEventListener("mousemove", handleMouseMove.current)
-                    )
-
-                    Points polyString
-
-                    SVGAttr.Fill color
-                    SVGAttr.Stroke color
-                    SVGAttr.StrokeWidth 2
-                ][]
-
-                // place symbol label
-                text [
-                        X textPosition.X
-                        Y textPosition.Y
-                        
-
-                        Style [
-                            TextAnchor "middle"
-                            FontSize "14px"
-                            FontWeight "Bold"
-                            UserSelect UserSelectOptions.None
-                        ]
-                    ][str compLabel]
-               
-                // draw input ports of component
-                for i in 0..(inpPortsLength-1) do
-                    // draws circular ports
-                    circle
-                        [ 
-                            Cx props.Shape.InputPorts.[i].Pos.X
-                            Cy props.Shape.InputPorts.[i].Pos.Y
-                            R inputRadius
-                           
-                            SVGAttr.Fill portFillInput
-                        ]
-                        []
-                    // draw port number
-                    text [
-                        X (props.Shape.InputPorts.[i].Pos.X + 7.)
-                        Y (props.Shape.InputPorts.[i].Pos.Y + 2.)
-
-                        Style [
-                            TextAnchor "middle"
-                            FontSize "12px"
-                            UserSelect UserSelectOptions.None
-                        ]
-                    ][str (string props.Shape.InputPorts.[i].PortNumber)]
-                    
-
-                // draw output ports of component
-                for i in 0..(outPortsLength-1) do
-                    // draws circular ports
-                    circle
-                        [ 
-                            Cx props.Shape.OutputPorts.[i].Pos.X
-                            Cy props.Shape.OutputPorts.[i].Pos.Y
-                            R outputRadius
-                           
-                            SVGAttr.Fill portFillOutput
-                        ]
-                        []
-                    // draw port number
-                    text [
-                        X (props.Shape.OutputPorts.[i].Pos.X - 7.)
-                        Y (props.Shape.OutputPorts.[i].Pos.Y + 2.)
-
-                        Style [
-                            TextAnchor "middle"
-                            FontSize "12px"
-                            UserSelect UserSelectOptions.None
-                        ]
-                    ][str (string props.Shape.OutputPorts.[i].PortNumber)]
+                        text [
+                            if portType = CommonTypes.PortType.Input then
+                                X (props.Symbol.InputPorts.[i].Pos.X + 5.); 
+                                Y props.Symbol.InputPorts.[i].Pos.Y; 
+                            else
+                                X (props.Symbol.OutputPorts.[i].Pos.X - 5.); 
+                                Y props.Symbol.OutputPorts.[i].Pos.Y; 
+                            Style [
+                                if portType = CommonTypes.PortType.Input then
+                                    TextAnchor "start" // left/right/middle: horizontal algnment vs (X,Y)
+                                else
+                                    TextAnchor "end" // left/right/middle: horizontal algnment vs (X,Y)
+                                DominantBaseline "middle" // auto/middle/hanging: vertical alignment vs (X,Y)
+                                FontSize "10px"
+                                FontWeight "Bold"
+                                Fill "Black" 
+                                UserSelect UserSelectOptions.None]
+                        ][str <| (string el)]
                 ]
-            |> ofList
-    , "Shape"
+            let portLabels (lst: 'T List) (inOrOut: CommonTypes.PortType): ReactElement List = 
+                lst
+                |> List.map (fun el -> (string el))
+                |> List.mapi 
+                    (fun i el -> 
+                        if (inOrOut = CommonTypes.PortType.Input) then 
+                            createPortShapeAndLabel i el inputPortColor inputPortRadius inOrOut
+                        else
+                            createPortShapeAndLabel i el outputPortColor outputPortRadius inOrOut
+                    )       
+            let title (symbolTitle: string) : ReactElement List= 
+                [text 
+                    [
+                        X props.Symbol.Pos.X; 
+                        Y (bBox.TopLeft.Y + 5.0); 
+                        Style [
+                            TextAnchor "middle" // left/right/middle: horizontal algnment vs (X,Y)
+                            DominantBaseline "hanging" // auto/middle/hanging: vertical alignment vs (X,Y)
+                            FontSize "10px"
+                            FontWeight "Bold"
+                            Fill "Black" 
+                            UserSelect UserSelectOptions.None
+                        ]
+                    ] [str <| symbolTitle]
+                ]
+            
+            let labels : ReactElement List = 
+                match (props.Symbol.Type: CommonTypes.ComponentType) with
+                | Input width -> 
+                    (portLabels [0] CommonTypes.PortType.Input) 
+                    @ (portLabels [0] CommonTypes.PortType.Output) 
+                    @ (title "Input")
+                | Output width -> 
+                    (portLabels [0] CommonTypes.PortType.Input) 
+                    @ (portLabels [0] CommonTypes.PortType.Output) 
+                    @ (title "Output")
+                | IOLabel -> 
+                    (portLabels [""] CommonTypes.PortType.Input) 
+                    @ (portLabels [""] CommonTypes.PortType.Output) 
+                    @ (title "")
+                | BusSelection (outWidth, outLSBit) ->
+                    (portLabels [0] CommonTypes.PortType.Input) 
+                    @ (portLabels [0] CommonTypes.PortType.Output) 
+                    @ (title (sprintf "(%d:0)" (outWidth - 1)))                                    
+                | Constant (width, value) -> 
+                    (portLabels [0] CommonTypes.PortType.Input) 
+                    @ (portLabels [0] CommonTypes.PortType.Output) 
+                    @ (title (string value))
+                | Not ->
+                    (notTriangle bBox props.Symbol.Pos symbolColor) 
+                    @ (portLabels [0] CommonTypes.PortType.Input) 
+                    @ (portLabels [0] CommonTypes.PortType.Output) 
+                    @ (title "1") 
+                | And ->
+                    (portLabels [0; 1] CommonTypes.PortType.Input) 
+                    @ (portLabels [0] CommonTypes.PortType.Output) 
+                    @ (title "&")
+                | Or ->
+                    (portLabels [0; 1] CommonTypes.PortType.Input) 
+                    @ (portLabels [0] CommonTypes.PortType.Output) 
+                    @ (title ">=1")
+                | Xor ->
+                    (portLabels [0; 1] CommonTypes.PortType.Input) 
+                    @ (portLabels [0] CommonTypes.PortType.Output) 
+                    @ (title "=1")
+                | Nand ->
+                    notTriangle bBox props.Symbol.Pos symbolColor 
+                    @ (portLabels [0; 1] CommonTypes.PortType.Input) 
+                    @ (portLabels [0] CommonTypes.PortType.Output) 
+                    @ (title "&")
+                | Nor ->
+                    notTriangle bBox props.Symbol.Pos symbolColor 
+                    @ (portLabels [0; 1] CommonTypes.PortType.Input) 
+                    @ (portLabels [0] CommonTypes.PortType.Output) 
+                    @ (title ">=1")
+                | Xnor ->
+                    notTriangle bBox props.Symbol.Pos symbolColor 
+                    @ (portLabels [0; 1] CommonTypes.PortType.Input) 
+                    @ (portLabels [0] CommonTypes.PortType.Output) 
+                    @ (title "=1") 
+                | Decode4 ->
+                    (portLabels ["Sel"; "Data"] CommonTypes.PortType.Input) 
+                    @ (portLabels [0..3] CommonTypes.PortType.Output) 
+                    @ (title "decode")
+                | Mux2 ->
+                    (portLabels [0; 1] CommonTypes.PortType.Input) 
+                    @ (portLabels [0] CommonTypes.PortType.Output) 
+                    @ (title "MUX2")
+                | Demux2 ->
+                    (portLabels [0] CommonTypes.PortType.Input) 
+                    @ (portLabels [0; 1] CommonTypes.PortType.Output) 
+                    @ (title "DMUX2")
+                | NbitsAdder busWidth ->
+                    (portLabels ["Cin"; "A"; "B"] CommonTypes.PortType.Input) 
+                    @ (portLabels ["Sum"; "Cout"] CommonTypes.PortType.Output) 
+                    @ (title (sprintf "adder (%d:0)" (busWidth - 1)))
+                | MergeWires -> 
+                    (portLabels [0; 1] CommonTypes.PortType.Input) 
+                    @ (portLabels [0] CommonTypes.PortType.Output) 
+                    @ (title "MergeWires") 
+                    @ wireLines bBox props.Symbol.Pos props.Symbol.H false
+                | SplitWire busWidth ->
+                    (portLabels [0] CommonTypes.PortType.Input) 
+                    @ (portLabels [0; 1] CommonTypes.PortType.Output) 
+                    @ (title "SplitWire") 
+                    @ wireLines bBox props.Symbol.Pos props.Symbol.H true
+                | DFF ->
+                    (portLabels ["D"; "clk"] CommonTypes.PortType.Input) 
+                    @ (portLabels ["Q"] CommonTypes.PortType.Output) 
+                    @ (title "DFF")
+                | DFFE ->
+                    (portLabels ["D"; "clk"; "EN"] CommonTypes.PortType.Input) 
+                    @ (portLabels ["Q"] CommonTypes.PortType.Output) 
+                    @ (title "DFFE")
+                | Register busWidth -> 
+                    (portLabels ["data-in"; "clk"] CommonTypes.PortType.Input) 
+                    @ (portLabels ["data-out"] CommonTypes.PortType.Output) 
+                    @ (title (sprintf "REG%d" busWidth))
+                | RegisterE busWidth ->
+                    (portLabels ["data-in"; "clk"; "EN"] CommonTypes.PortType.Input) 
+                    @ (portLabels ["data-out"] CommonTypes.PortType.Output) 
+                    @ (title (sprintf "REG%d" busWidth))                    
+                | AsyncROM mem -> 
+                    (portLabels ["addr"] CommonTypes.PortType.Input) 
+                    @ (portLabels ["data"] CommonTypes.PortType.Output) 
+                    @ (title "Async-ROM")
+                | ROM mem ->
+                    (portLabels ["addr"; "clk"] CommonTypes.PortType.Input) 
+                    @ (portLabels ["data"] CommonTypes.PortType.Output) 
+                    @ (title "ROM")
+                | RAM mem ->
+                    (portLabels ["addr"; "data-in"; "write"; "clk"] CommonTypes.PortType.Input) 
+                    @ (portLabels ["data-out"] CommonTypes.PortType.Output) 
+                    @ (title "RAM")
+                |_ -> failwith "Invalid Component Type"
+            
+            [
+                polygon
+                    [ 
+                        OnMouseUp (fun ev -> 
+                            document.removeEventListener("mousemove", handleMouseMove.current)
+                            EndDraggingSymbol props.Symbol.Id
+                            |> props.Dispatch
+                        )
+                        OnMouseDown (fun ev -> 
+                            // See note above re coords wrong if zoom <> 1.0
+                            StartDraggingSymbol (props.Symbol.Id, posOf ev.pageX ev.pageY)
+                            |> props.Dispatch
+                            document.addEventListener("mousemove", handleMouseMove.current)
+                        )
+                        SVGAttr.Points bBoxStr
+                        SVGAttr.Fill symbolColor
+                        SVGAttr.Stroke "black"
+                        SVGAttr.StrokeWidth 1
+                    ][ ]
+            ] @ labels
+            |> ofList     
+    , "Symbol"
     , equalsButFunctions
     )
 
-/// View function for Symbol layer of SVG
+/// View function for symbol layer of SVG
 let view (model : Model) (dispatch : Msg -> unit) = 
     model
-    |> List.map (fun ({Id = CommonTypes.ComponentId id} as Shape) ->
-        renderShape
+    |> List.map (fun ({Id = CommonTypes.ComponentId id} as symbol) ->
+        renderSymbol 
             {
-                Shape = Shape
+                Symbol = symbol
                 Dispatch = dispatch
-                key = id
+                Key = id
             }
     )
     |> ofList
 
 
+//---------------Other interface functions--------------------//
 
-//------------------------------------------------------------------------//
-//-------------------------Other interface functions----------------------//
-//------------------------------------------------------------------------//
+let symbolBoundingBox (symModel: Model) (sId: CommonTypes.ComponentId) : XYPos * XYPos * XYPos * XYPos =
+    List.find (fun sym -> sym.Id = sId) symModel
+    |> (fun sym -> 
+        (sym.BoundingBox.BottomLeft, sym.BoundingBox.TopLeft, sym.BoundingBox.BottomRight, sym.BoundingBox.TopRight)
+    )
 
-/// Finds port position
-let findPortPos (symModel: Model) (sId: CommonTypes.ComponentId) (portId: string): XYPos = 
-    let selectedSymbol = 
-        List.find (fun sym -> sym.Id = sId) symModel
-    
-    let inputPort = 
-        selectedSymbol.InputPorts
-        |> List.tryFind (fun port -> port.Id = portId)
+let symbolPortType (symModel: Model) (pId: string): CommonTypes.PortType = 
+    portInModel symModel pId
+    |> (fun chosenPort -> chosenPort.PortType)
 
-    let outputPort = 
-        selectedSymbol.OutputPorts
-        |> List.tryFind (fun port -> port.Id = portId)
+let symbolPortWidth (symModel: Model) (pId: string): int = 
+    portInModel symModel pId
+    |> (fun chosenPort -> chosenPort.Width)
 
-    match inputPort, outputPort with
-    | Some port, None -> port.Pos
-    | None, Some port -> port.Pos
-    | _, _ -> failwithf "should not happen"
-   
-/// Finds port position without symbol id
-let symbolPortPos (symModel: Model) (portId: string): XYPos = 
-    // find symbol with which the port belongs to
-    let selectedSymbol = 
-        symModel
-        |>  List.find (fun sym ->
-                let findInputPort = 
-                    sym.InputPorts
-                    |>  List.tryFind (fun port -> portId = port.Id)
-                
-                let findOutputPort = 
-                    sym.OutputPorts
-                    |>  List.tryFind(fun port -> portId = port.Id)
+let symbolPortPos (symModel: Model) (pId: string): XYPos = 
+    portInModel symModel pId
+    |> (fun chosenPort -> chosenPort.Pos)
 
-                match findInputPort, findOutputPort with
-                | Some _, _ -> true
-                | _, Some _ -> true
-                | _ -> false
-            )
-    
-    // find the port position
-    let findInputPort = 
-        selectedSymbol.InputPorts
-        |>  List.tryFind (fun port -> portId = port.Id)
-    
-    let findOutputPort = 
-        selectedSymbol.OutputPorts
-        |>  List.tryFind(fun port -> portId = port.Id)
-
-    match findInputPort, findOutputPort with
-    | Some port, _ -> port.Pos
-    | _, Some port -> port.Pos
-    | _, _ -> {X=0.; Y=0.} // this should never happen
-
-    
-
-/// Finds if there is a port at a certain position
-let findPortByPosition (symModel: Model) (pos: XYPos) : CommonTypes.Port option = 
-    let checkIfPortSelected (mousePos: XYPos) (port: CommonTypes.Port) = 
-            abs(port.Pos.X - mousePos.X) < portRadius && abs(port.Pos.Y - mousePos.Y) < portRadius
-
-    // find symbol with which the port is selected
-    let selectedSymbol = 
-        symModel
-        |> List.tryFind (fun sym -> 
-                            let checkInputPorts = 
-                                sym.InputPorts
-                                |> List.tryFind (fun inpPort -> checkIfPortSelected pos inpPort)
-                                |> (fun x -> x <> None)
-                            
-                            let checkOutputPorts = 
-                                sym.OutputPorts
-                                |> List.tryFind (fun outPort -> checkIfPortSelected pos outPort)
-                                |> (fun x -> x <> None)
-                            
-                            checkInputPorts || checkOutputPorts)
-    
-    // if no symbol is found, return None, otherwise return the port
-    match selectedSymbol with
-    | None -> None
-    | Some sym ->
-        let inputPort = 
-            sym.InputPorts
-            |> List.tryFind (fun inpPort -> checkIfPortSelected pos inpPort)
-        
-        let outputPort = 
-            sym.OutputPorts
-            |> List.tryFind (fun outPort -> checkIfPortSelected pos outPort)
-
-        match inputPort, outputPort with 
-        | Some inpPort, _ -> Some inpPort
-        | _, Some outPort -> Some outPort
-        | _, _ -> None
-        
-/// Finds if there is a symbol at a certain hovered position and whether it is selected
-let isSymbolHoveredAndSelected (symModel: Model) (pos: XYPos) = 
-    // find if there is a symbol that is hovered or selected
-    let selectedSymbol = 
-        symModel
-        |> List.tryFind (fun sym -> 
-                            let vertices = sym.Vertices
-
-                            // assume square vertices for symbol
-                            let v1 = vertices.[0]
-                            let v2 = vertices.[1]
-                            let v3 = vertices.[2]
-
-                            // perform bounding box calculation
-                            pos.X >= v1.X && pos.X <= v2.X && pos.Y >= v2.Y && pos.Y <= v3.Y)
-
-    // if no symbol is found, return false, else return whether the symbol is selected               
-    match selectedSymbol with
-    | None -> false
-    | Some sym ->
-        sym.isSelected
-
-/// Checks if symbol is selected
-let isSymbolSelected (symModel: Model) (sId: CommonTypes.ComponentId) : bool = 
-    let curSymbol = 
-        symModel
-        |> List.find (fun sym -> sym.Id = sId)
-    curSymbol.isSelected
-
-/// Checks if any symbol is dragging
-let isAnySymbolDragging (symModel: Model) : bool = 
+let findSelectedSymbol (symModel: Model): CommonTypes.ComponentId Option= //obtains symbol currently being dragged -> returns None if no symbol being dragged
     symModel
-    |> List.exists (fun sym -> sym.IsDragging)
+    |> List.tryFind (fun sym -> sym.IsDragging)
+    |> function 
+       | Some sym -> Some sym.Id
+       | None -> None
 
-/// Finds next available position to insert new symbol
-let findNextAvailablePos (symModel: Model) (dimensions: float * float) = 
-    // obtains width of new inserted symbol
-    let width = 
-        fst dimensions
+let symbolPos (symModel: Model) (sId: CommonTypes.ComponentId) : XYPos = 
+    symInModel symModel sId
+    |> (fun sym -> sym.Pos)
 
-    // obtains height of new inserted symbol
-    let height = 
-        snd dimensions 
+let findNextAvailablePos (symModel: Model) (dimensions: float * float) : XYPos = 
+    //returns the next available position that has no collision with any other symbols in the canvas
+    let generateXAndY = 
+        [1..20]
+        |> List.map (fun x -> (float x)*80.)
     
-    // checks if position available
-    let checkIfPosAvailable pos = 
-        let overlappedSymbol = 
-            symModel
-            |> List.tryFind (fun sym -> 
-                                // perform bounding box calculation to see whether there is any symbol overlapping
-                                let l1 =    
-                                    {X = pos.X - width - 20.; Y = pos.Y - height - 20.} 
+    let posInAnySymbolInModel (pos: XYPos) = 
+        let topLeft : XYPos = {
+            X = pos.X - (fst dimensions)/2.
+            Y = pos.Y - (snd dimensions)/2.
+        }
+        let bottomRight : XYPos = {
+            X = pos.X + (fst dimensions)/2.
+            Y = pos.Y + (snd dimensions)/2.     
+        }
+        symModel
+        |> List.tryFind (fun sym ->
+                let bBox = sym.BoundingBox 
+                not (bBox.TopLeft.X >= bottomRight.X || bBox.BottomRight.X <= topLeft.X ||
+                    bBox.TopLeft.Y >= bottomRight.Y || bBox.BottomRight.Y <= topLeft.Y)
+            )
+        |> function
+           | Some sym -> false
+           | None -> true
+        
+    let testCoords = 
+        List.allPairs generateXAndY generateXAndY
+        |> List.map (fun (x, y) -> {
+                X = x;
+                Y = y;
+            })
+        |> List.tryFind (fun pos -> (posInAnySymbolInModel pos))
+    match testCoords with
+    | Some pos -> pos
+    | None -> {
+            X = (float (CommonTypes.draw2dCanvasWidth/2));
+            Y = (float (CommonTypes.draw2dCanvasHeight/2));
+        }// default position if no next available position was found is in the middle of the canvas
 
-                                let r1 = 
-                                    {X = pos.X + width + 20.; Y = pos.Y + height + 20.} 
+let findPortByPosition (symModel: Model) (pos: XYPos) : CommonTypes.Port Option =
+    let cursorInPort (cursorPos: XYPos) (port: CommonTypes.Port) = 
+        abs(port.Pos.X - cursorPos.X) < 7. && abs(port.Pos.Y - cursorPos.Y) < 7.
+    symModel
+    |> List.collect (fun sym -> sym.InputPorts @ sym.OutputPorts)
+    |> List.tryFind (cursorInPort pos)
+    //returns the port given a mouse position. If no port is found, return None.
 
-                                let vertices = sym.Vertices
+let isSymbolHoveredAndSelected (symModel: Model) (pos: XYPos) : bool =   
+    symModel
+    |> List.tryFind (fun sym -> posInSymbol sym pos)
+    |> function
+       | Some sym -> true
+       | None -> false 
 
-                                let l2 = 
-                                    vertices.[0]
-                               
-                                let r2 = 
-                                    vertices.[2]
+let isSymbolSelected (symModel: Model) (sId: CommonTypes.ComponentId) : bool = 
+    symInModel symModel sId
+    |> (fun sym -> sym.IsSelected)
+    // returns whether or not a symbol is selected
 
-                                if (l1.X >= r2.X || l2.X >= r1.X) then false
-                                else not (l1.Y >= r2.Y || l2.Y >= r1.Y)
-                            )
+let isAnySymbolDragging (symModel: Model) : bool =
+    symModel
+    |> List.tryFind (fun sym -> sym.IsDragging)
+    |> function
+       | Some sym -> true
+       | None -> false
+    //check if ANY symbol is currently being dragged
 
-        // if there is an overlapping, return false (i.e. position not available), otherwise true
-        match overlappedSymbol with 
-        | Some x -> false
-        | None -> true
-    
-    // finds next available position in the canvas
-    let nextAvailablePos = 
-        let listX = 
-            [1..10]
-            |> List.map (fun x -> float(x * 100))
-       
-        let listY = 
-            [1..10]
-            |> List.map (fun y -> float(y * 100))
+/// Update the symbol with matching componentId to comp, or add a new symbol based on comp.
+let updateSymbolModelWithComponent (symModel: Model) (comp:CommonTypes.Component) : Model =
+    let pos = {
+                X = (float comp.X)
+                Y = (float comp.Y)
+            }
+    let newSym = 
+        {
+            Pos = pos
+            LastDragPos = {X=0. ; Y=0.}
+            IsDragging = false
+            IsSelected = false
+            IsHovered = false
+            Id = CommonTypes.ComponentId(comp.Id)
+            Type = comp.Type
+            Label = comp.Label
+            InputPorts = comp.InputPorts
+            OutputPorts = comp.OutputPorts
+            BoundingBox = calcBoundingBox pos comp.H comp.W
+            ExpandedPort = None
+            H = comp.H
+            W = comp.W
+        }
+    let model = List.filter (fun sym -> sym.Id <> CommonTypes.ComponentId(comp.Id)) symModel
+    newSym :: model
 
-        List.allPairs listX listY
-        |> List.tryFind (fun (x, y) -> checkIfPosAvailable {X=x; Y=y})
-    
-    match nextAvailablePos with
-    // if position found, create symbol in this position
-    | Some avPosition -> {X = fst avPosition; Y = snd avPosition}
+//----------------------interface to Issie-----------------------------//
 
-    // otherwise insert symbol in default position (100, 100)
-    | None -> {X=100.; Y=100.;}
+let symToComp (sym: Symbol) : CommonTypes.Component= {
+        Id = (unwrapCompId sym.Id)
+        Type = sym.Type
+        Label = sym.Label
+        InputPorts = sym.InputPorts
+        OutputPorts = sym.OutputPorts
+        X = (int sym.Pos.X)
+        Y = (int sym.Pos.Y)
+        H = sym.H
+        W = sym.W
+    }
 
-
-
-//------------------------------------------------------------------------//
-//---------------------------interface to Issie---------------------------//
-//------------------------------------------------------------------------//
-
-// interface for Issie currently not used
 let extractComponent 
         (symModel: Model) 
         (sId:CommonTypes.ComponentId) : CommonTypes.Component= 
-    failwithf "Not implemented"
+
+    List.tryFind (fun sym -> sym.Id = sId) symModel
+    |> function
+        | Some x -> symToComp x 
+        | None -> failwithf "What? Symbol not found in model"
+
 let extractComponents (symModel: Model) : CommonTypes.Component list = 
-    failwithf "Not implemented"
+    List.map symToComp symModel
