@@ -18,6 +18,97 @@ open type CommonTypes.ComponentType
 /// from a more compact form, so that comparison of two Symbols to
 /// determine are they the same is fast.
 
+
+
+//The main issue to solve in order to be able to use Arie's functions
+//is to add the vertices field to the record type Symbol.
+//It is especially critical to solve the problem of overlapping symbols, 
+//so we should use Arie's fnunction below instead of the function actually used:
+
+let findNextAvailablePos2 (symModel: Model) (dimensions: float * float) = 
+    let width = 
+        fst dimensions
+
+    let height = 
+        snd dimensions 
+    
+    // checks if position available
+    let checkIfPosAvailable pos = 
+        let overlappedSymbol = 
+            symModel
+            |> List.tryFind (fun sym -> 
+                                let l1 =    
+                                    {X = pos.X - width - 20.; Y = pos.Y - height - 20.} // add extra gap 
+
+                                let r1 = 
+                                    {X = pos.X + width + 20.; Y = pos.Y + height + 20.} // add extra gap
+
+                                let vertices = sym.Vertices
+
+                                let l2 = 
+                                    vertices.[0]
+                               
+                                let r2 = 
+                                    vertices.[2]
+
+                                if (l1.X >= r2.X || l2.X >= r1.X) then false
+                                elif (l1.Y >= r2.Y || l2.Y >= r1.Y) then false
+                                else true
+                            )
+
+        match overlappedSymbol with 
+        | Some x -> false
+        | None -> true
+    
+    let nextAvailablePos = 
+        let listX = 
+            [1..10]
+            |> List.map (fun x -> float(x * 100))
+       
+        let listY = 
+            [1..10]
+            |> List.map (fun y -> float(y * 100))
+
+        List.allPairs listX listY
+        |> List.tryFind (fun (x, y) -> checkIfPosAvailable {X=x; Y=y})
+    
+    match nextAvailablePos with
+    // if position found, create symbol in this position
+    | Some avPosition -> {X = fst avPosition; Y = snd avPosition}
+
+    // otherwise insert symbol in default position (100, 100)
+    | None -> {X=100.; Y=100.;}
+
+
+//I think the best approach is to try and replace the boundingBox field with Vertices, 
+//and change its type from XYPos*XYPos*XYPos*XYPos to XYPos list
+//A part form this type change, not much more should be modified than is necessary because the data itself would actually be the same
+//If this is accomplished without compilation errors then we should be fine to use Arie's functions
+
+//A second option to solve the problem is to add a Vertices field where we would have the same data as in boundingBox but with type XYPos
+//This solution is easier to implement but isn't so elegant
+
+//For the second problem (ports only showing when hovering over them), we have to add the following match statement
+//let inputRadius, outputRadius, portFillInput, portFillOutput = 
+//                match props.Shape.ExpandedPort, props.Shape.IsHovered with
+//                | None, true -> portRadius, portRadius, "#2f5e5e", "#2f5e5e"
+//                | None, false -> portRadius, portRadius, "none", "none"
+//                | Some CommonTypes.PortType.Input, true -> 
+//                    expandedPortRadius, portRadius, "#2f5e5e", "#2f5e5e"
+//                | Some CommonTypes.PortType.Input, false -> 
+//                    expandedPortRadius, portRadius, "#2f5e5e", "none"
+//                | Some CommonTypes.PortType.Output, true ->
+//                    portRadius, expandedPortRadius, "#2f5e5e", "#2f5e5e"
+//                | Some CommonTypes.PortType.Output, false ->
+//                    portRadius, expandedPortRadius, "none", "#2f5e5e" 
+                 
+                   
+//or we ca simply replace the renderSymbol function with Arnau's renderShape, which looks less repetitive and more elegant, more "functional"
+//the later option is faster to implement so I'd recommend that but we might run into further merging problems
+
+//Possible extra features to add: symbols highlighted in red when they are overlapping after dragging them
+
+
 type BoundingBox = 
     {
         TopLeft : XYPos
