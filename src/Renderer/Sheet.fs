@@ -49,7 +49,7 @@ type KeyboardMsg =
 type Msg =
     | Wire of BusWire.Msg
     | KeyPress of KeyboardMsg
-    | CreateSymbol of float * float
+    | CreateSymbol of CommonTypes.ComponentType * float * float
     | ChangeWireWidth of int
     | ChangeCompLabel of string
     | ChangeNumInputPorts of int
@@ -61,6 +61,17 @@ type Msg =
 //------------------------------------------------------------------------//
 //---------------------------Helper Functions-----------------------------//
 //------------------------------------------------------------------------//
+let testMemory : CommonTypes.Memory = {
+    AddressWidth = 0
+        // How wide each memory word should be, in bits.
+    WordWidth = 3
+        // Data is a list of <2^AddressWidth> elements, where each element is a
+        // 64 bit integer. This makes words longer than 64 bits not supported.
+        // This can be changed by using strings instead of int64, but that is way
+        // less memory efficient.
+    Data = Map.empty
+}
+let testBusWidth = 3
 
 // obtains the right-side menu to obtain user inputs (e.g. symbol type, name
 // of components, number of input and output ports, port width, etc.)
@@ -70,7 +81,7 @@ let rightColumn =
         Right "0px"
         Top "0px"
         Height  "100vh"
-        Width "25%"
+        Width "37.5%"
         BorderTop "0.4vh solid lightgray"
         BorderLeft "0.4vh solid lightgray"
         BorderBottom "0.4vh solid lightgray"
@@ -81,6 +92,55 @@ let rightColumn =
         BackgroundColor "#f2f2f2"
     ]
 
+let rightColumnLeft = 
+    Style [
+        Position PositionOptions.Fixed
+        Right "190px"
+        Top "220px"
+        Height  "100vh"
+        Width "12.5%"
+        BorderTop "0.4vh solid lightgray"
+        BorderLeft "0.4vh solid lightgray"
+        BorderBottom "0.4vh solid lightgray"
+        Margin "0"
+        Padding "0"
+        UserSelect UserSelectOptions.None
+        ZIndex 31
+        BackgroundColor "#f2f2f2"
+    ]
+
+let rightColumnRight = 
+    Style [
+        Position PositionOptions.Fixed
+        Right "0px"
+        Top "220px"
+        Height  "100vh"
+        Width "12.5%"
+        BorderTop "0.4vh solid lightgray"
+        BorderLeft "0.4vh solid lightgray"
+        BorderBottom "0.4vh solid lightgray"
+        Margin "0"
+        Padding "0"
+        UserSelect UserSelectOptions.None
+        ZIndex 31
+        BackgroundColor "#f2f2f2"
+    ]
+let rightOfRightColumn = 
+    Style [
+        Position PositionOptions.Fixed
+        Right "380px"
+        Top "220px"
+        Height  "100vh"
+        Width "12.5%"
+        BorderTop "0.4vh solid lightgray"
+        BorderLeft "0.4vh solid lightgray"
+        BorderBottom "0.4vh solid lightgray"
+        Margin "0"
+        Padding "0"
+        UserSelect UserSelectOptions.None
+        ZIndex 31
+        BackgroundColor "#f2f2f2"
+    ]
 // obtain canvas height and width from CommonTypes
 let canvasHeight = CommonTypes.draw2dCanvasHeight
 let canvasWidth = CommonTypes.draw2dCanvasWidth
@@ -217,7 +277,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                 
             ]
 
-          // draws the right-side menu column (for demo purposes only - i.e. to input different symbols)
+          // draws the right-side menu column
           div [ rightColumn ][
               
               div [ Style [Height "100%"; Width "100%"; TextAlign TextAlignOptions.Center]]
@@ -235,20 +295,6 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                             ] [str "Module Selection"]
                       ] 
                       
-                      // user input component name
-                      div [ Style [PaddingTop "5vh"]][
-                          input [   
-                                    Type "text"
-                                    Placeholder "component name"
-                                    OnChange (fun ev -> dispatch (ChangeCompLabel (ev.Value)))
-
-                                    Style [
-                                        Width "50%"
-                                        FontSize "1.5vh"
-                                        Height "3vh"
-                                    ]
-                                ]
-                      ]
                        
                       // user input port width
                       div [ Style [PaddingTop "2vh"]][
@@ -294,7 +340,81 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                     ]
                                 ]
                       ]
-
+                  ]
+            ]
+          div [ rightOfRightColumn ][
+              div [ Style [Height "100%"; Width "100%"; TextAlign TextAlignOptions.Center]]
+                [
+                    div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" 
+                                    DominantBaseline "middle" 
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" 
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Input(testBusWidth), 40., 50.)))
+                            ][str "Input"]
+                      ]                     
+                    div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" 
+                                    DominantBaseline "middle" 
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" 
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Output(testBusWidth), 40., 50.)))
+                            ][str "Output"]
+                      ]                     
+                    div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" 
+                                    DominantBaseline "middle" 
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" 
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.BusSelection(testBusWidth, 0), 40., 50.)))
+                            ][str "BusSelection"]
+                      ]                     
+                    div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" 
+                                    DominantBaseline "middle" 
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" 
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Constant(testBusWidth, 5), 40., 50.)))
+                            ][str "Constant: 5"]
+                      ]                     
+                    div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" 
+                                    DominantBaseline "middle" 
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" 
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Not, 40., 50.)))
+                            ][str "Not"]
+                      ]                     
+                ]
+            ]
+          div [ rightColumnLeft ][
+              div [ Style [Height "100%"; Width "100%"; TextAlign TextAlignOptions.Center]]
+                [
                       // user select to create module 1
                       div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
                             a [
@@ -302,43 +422,265 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                     Height "5vh"
                                     TextAnchor "middle" 
                                     DominantBaseline "middle" 
-                                    FontSize "2.4vh"
+                                    FontSize "1.5vh"
                                     FontWeight "Bold"
                                     Fill "Gray" 
                                 ]
-                                OnClick (fun _ -> dispatch (CreateSymbol (40., 60.)))
-                            ][str "Module 1"]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Not, 40., 50.)))
+                            ][str "Not"]
                       ] 
-
-                      // user select to create module 2
                       div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
                             a [
                                 Style [
                                     Height "5vh"
                                     TextAnchor "middle" // horizontal algnment vs (X,Y)
                                     DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                    FontSize "2.4vh"
+                                    FontSize "1.5vh"
                                     FontWeight "Bold"
                                     Fill "Gray" // font color
                                 ]
-                                OnClick (fun _ -> dispatch (CreateSymbol (60., 90.)))
-                            ][str "Module 2"]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Or, 60., 50.)))
+                            ][str "Or"]
                       ]
-                      
-                      // user select to create module 3
                       div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
                             a [
                                 Style [
                                     Height "5vh"
                                     TextAnchor "middle" // horizontal algnment vs (X,Y)
                                     DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                    FontSize "2.4vh"
+                                    FontSize "1.5vh"
                                     FontWeight "Bold"
                                     Fill "Gray" // font color
                                 ]
-                                OnClick (fun _ -> dispatch (CreateSymbol (70., 70.)))
-                            ][str "Module 3"]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.And, 60., 50.)))
+                            ][str "And"]
                       ]
+                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Nor, 60., 50.)))
+                            ][str "Nor"]
+                      ]
+                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Xor, 60., 50.)))
+                            ][str "Xor"]
+                      ]
+                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Nand, 60., 50.)))
+                            ][str "Nand"]
+                        ]
+                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Xnor, 60., 50.)))
+                            ][str "Xnor"]
+                       ]
+                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Decode4, 200., 80.)))
+                            ][str "Decode4"]
+                       ]
+                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Mux2, 60., 50.)))
+                            ][str "Mux2"]
+                        ]
+                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Demux2, 60., 50.)))
+                            ][str "Demux2"]
+                        ]
+                ]
+            ]
+          div [ rightColumnRight ][
+              div [ Style [Height "100%"; Width "100%"; TextAlign TextAlignOptions.Center]]
+                [
+                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.NbitsAdder(testBusWidth), 150., 100.)))
+                            ][str "NbitsAdder"]
+                        ]
+                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.MergeWires, 60., 70.)))
+                            ][str "MergeWires"]
+                        ]                          
+                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.SplitWire(testBusWidth), 60., 70.)))
+                            ][str "SplitWire"]
+                        ]  
+                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.DFF, 60., 50.)))
+                            ][str "DFF"]
+                        ] 
+                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.DFFE, 100., 80.)))
+                            ][str "DFFE"]
+                        ] 
+                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Register(testBusWidth), 100., 120.)))
+                            ][str "Register"]
+                        ] 
+                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.RegisterE(testBusWidth), 100., 120.)))
+                            ][str "RegisterE"]
+                        ]  
+                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.AsyncROM(testMemory), 150., 100.)))
+                            ][str "AsyncROM"]
+                        ] 
+                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.ROM(testMemory), 150., 100.)))
+                            ][str "ROM"]
+                        ] 
+                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                            a [
+                                Style [
+                                    Height "5vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.RAM(testMemory), 150., 160.)))
+                            ][str "RAM"]
+                        ] 
                   ]
             ]
         ]
@@ -364,22 +706,25 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         model, Cmd.none
 
     // draws new symbol
-    | CreateSymbol (width, height) ->
+    | CreateSymbol (compType, width, height) ->
 
         // finds position to insert new symbol (i.e. ensuring no collision with existing symbols)
         let pos = Symbol.findNextAvailablePos (model.Wire.Symbol) (width, height)
 
         // define symbol vertices from: top left -> top right -> bottom right -> bottom left
+        //unused
         let vertices = [{X=pos.X - width; Y=pos.Y - height}; {X=pos.X + width; Y=pos.Y - height}; {X=pos.X + width; Y=pos.Y + height}; {X=pos.X - width; Y=pos.Y + height}]
 
         // all other information comes from user input
         let portWidth = model.ComponentInfo.PortWidth
-        let label = model.ComponentInfo.ComponentLabel
-        let inputPortLength = model.ComponentInfo.NumInputPorts
-        let outputPortLength = model.ComponentInfo.NumOutputPorts
+        //unused
+        // let label = model.ComponentInfo.ComponentLabel
+        // let inputPortLength = model.ComponentInfo.NumInputPorts
+        // let outputPortLength = model.ComponentInfo.NumOutputPorts 
 
         // return updated model
-        let newModel, newCmd = Symbol.update (Symbol.Msg.AddSymbol (pos, portWidth, label, vertices, inputPortLength, outputPortLength)) model.Wire.Symbol
+        let newModel, newCmd = Symbol.update (Symbol.Msg.AddSymbol (compType, portWidth, pos)) model.Wire.Symbol
+        //let newModel, newCmd = Symbol.update (Symbol.Msg.AddSymbol (pos, portWidth, label, vertices, inputPortLength, outputPortLength)) model.Wire.Symbol
         {model with Wire = {model.Wire with Symbol = newModel}}, newCmd
 
     // deletes symbol
@@ -609,15 +954,17 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
            
             // obtain new symbol
             let newSymbol, _ = 
-                Symbol.update (Symbol.Msg.SymbolHovering pos) model.Wire.Symbol
+                let hoverCheck, _ = 
+                    Symbol.update (Symbol.Msg.SymbolHovering pos) model.Wire.Symbol
+                Symbol.update Symbol.Msg.SymbolOverlap hoverCheck //checking if symbol overlaps any other symbol in model after checking if hovering over symbol
 
             // move wire alongside its corresponding ports if symbol moved
             let newWX = 
                 model.Wire.WX 
                 |> List.map (fun wire -> 
                     // find new source and target symbol positions
-                    let newSrcPos = Symbol.findPortPos model.Wire.Symbol wire.SrcPort.HostId wire.SrcPort.Id
-                    let newTargetPos = Symbol.findPortPos model.Wire.Symbol wire.TargetPort.HostId wire.TargetPort.Id
+                    let newSrcPos = Symbol.symbolPortPos model.Wire.Symbol wire.SrcPort.Id //fixed to correct function name and call parameters
+                    let newTargetPos = Symbol.symbolPortPos model.Wire.Symbol wire.TargetPort.Id
 
                     // find new source and target ports with updated positions
                     let newSrcPort = {wire.SrcPort with Pos=newSrcPos}
