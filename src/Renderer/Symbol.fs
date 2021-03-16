@@ -390,11 +390,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         )
         , Cmd.none
     | SymbolOverlap ->
-        printfn "test"
         model
         |> List.map (fun sym ->
             if (checkIfSymbolsOverlap model sym) then
-                printfn "bingo"
                 { sym with
                     IsOverlapped = true
                 }

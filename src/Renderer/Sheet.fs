@@ -713,7 +713,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         // define symbol vertices from: top left -> top right -> bottom right -> bottom left
         //unused
-        let vertices = [{X=pos.X - width; Y=pos.Y - height}; {X=pos.X + width; Y=pos.Y - height}; {X=pos.X + width; Y=pos.Y + height}; {X=pos.X - width; Y=pos.Y + height}]
+        //let vertices = [{X=pos.X - width; Y=pos.Y - height}; {X=pos.X + width; Y=pos.Y - height}; {X=pos.X + width; Y=pos.Y + height}; {X=pos.X - width; Y=pos.Y + height}]
 
         // all other information comes from user input
         let portWidth = model.ComponentInfo.PortWidth
