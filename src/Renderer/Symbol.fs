@@ -167,7 +167,10 @@ let unwrapCompId (CommonTypes.ComponentId x) = x
 
 let posInSymbol (sym: Symbol) (pos:XYPos) : bool= 
     let vertices = sym.Vertices
-    (pos.X >= vertices.[0].X)&&(pos.Y <= vertices.[0].Y)&&(pos.X <= vertices.[2].X)&&(pos.Y >= vertices.[2].Y)
+    (pos.X >= vertices.[0].X)&&
+    (pos.Y <= vertices.[0].Y)&&
+    (pos.X <= vertices.[2].X)&&
+    (pos.Y >= vertices.[2].Y)
 
 let checkIfSymbolsOverlap (symModel: Model) (sym1: Symbol) : bool = 
     let overlappedSymbol = 
@@ -176,7 +179,8 @@ let checkIfSymbolsOverlap (symModel: Model) (sym1: Symbol) : bool =
             let sym1Vertices = sym1.Vertices
             let cornerInSymbol =
                 sym1Vertices
-                |> List.tryFind (fun vertex -> ((posInSymbol sym2 vertex)&& (sym1 <> sym2)))
+                |> List.tryFind (fun vertex -> 
+                    ((posInSymbol sym2 vertex)&& (sym1 <> sym2)))
             match cornerInSymbol with 
             | Some x -> true
             | None -> false
@@ -328,7 +332,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                 else
                     x2, y1, x1, y2
             let inRegion = 
-                (vertices.[1].X >= cor1x)&&(vertices.[1].Y >= cor1y)&&(vertices.[3].X <= cor2x)&&(vertices.[3].Y <= cor2y)
+                (vertices.[1].X >= cor1x)&&
+                (vertices.[1].Y >= cor1y)&&
+                (vertices.[3].X <= cor2x)&&
+                (vertices.[3].Y <= cor2y)
             if inRegion then 
                 { sym with 
                     IsSelected = true
@@ -371,13 +378,17 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                         sym.InputPorts
                         |> List.mapi (fun i port -> 
                             {port with 
-                                Pos = (portPos CommonTypes.PortType.Input sym.Pos sym.H sym.W numberOfInputs i)
+                                Pos = (portPos 
+                                    CommonTypes.PortType.Input sym.Pos 
+                                    sym.H sym.W numberOfInputs i)
                             })
                     OutputPorts = 
                         sym.OutputPorts
                         |> List.mapi (fun i port -> 
                             {port with 
-                                Pos = (portPos CommonTypes.PortType.Output sym.Pos sym.H sym.W numberOfOutputs i)
+                                Pos = (portPos 
+                                    CommonTypes.PortType.Output sym.Pos 
+                                    sym.H sym.W numberOfOutputs i)
                             })
                 }
         )
@@ -448,7 +459,9 @@ type private RenderSymbolProps =
     }
 
 
-let notTriangle (vertices: XYPos List) (pos: XYPos) (color: string): ReactElement List =
+let notTriangle 
+    (vertices: XYPos List) (pos: XYPos) 
+    (color: string): ReactElement List =
     [polygon
         [
             SVGAttr.Points 
@@ -463,7 +476,9 @@ let notTriangle (vertices: XYPos List) (pos: XYPos) (color: string): ReactElemen
         ][]
     ]
 
-let wireLines (vertices: XYPos List) (pos: XYPos) (h: int) (splitOrMerge: bool): ReactElement List= 
+let wireLines 
+    (vertices: XYPos List) (pos: XYPos) 
+    (h: int) (splitOrMerge: bool): ReactElement List= 
     [line
         [
             X1 (if splitOrMerge then
