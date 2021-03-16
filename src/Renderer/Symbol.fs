@@ -193,7 +193,10 @@ let checkIfSymbolsOverlap (symModel: Model) (sym1: Symbol) : bool =
 /// The parameters of this function must be enough to specify the symbol completely
 /// in its initial form. This is called by the AddSymbol message and need not be exposed.
 
-let portPos (inOrOut: CommonTypes.PortType) (pos: XYPos) (h: int) (w:int) (numberOfPorts: int) (portNumber: int): XYPos =
+let portPos 
+    (inOrOut: CommonTypes.PortType) 
+    (pos: XYPos) (h: int) (w:int) 
+    (numberOfPorts: int) (portNumber: int): XYPos =
     {
             X = if (inOrOut = CommonTypes.PortType.Input) then 
                     pos.X - (float w/2.)
@@ -202,7 +205,11 @@ let portPos (inOrOut: CommonTypes.PortType) (pos: XYPos) (h: int) (w:int) (numbe
             Y = pos.Y - (float h/2.) + (float (h/(numberOfPorts + 1) * (portNumber+1)))
     }    
 
-let newPortTemplate (inOrOut: CommonTypes.PortType) (hostId: CommonTypes.ComponentId) (portNumber: int) (busWidth: int) (pos: XYPos) (h:int) (w:int)
+let newPortTemplate 
+    (inOrOut: CommonTypes.PortType) 
+    (hostId: CommonTypes.ComponentId) 
+    (portNumber: int) (busWidth: int) 
+    (pos: XYPos) (h:int) (w:int)
     (numberOfPorts: int): CommonTypes.Port=
     {
         Id = Helpers.uuid()
@@ -215,7 +222,12 @@ let newPortTemplate (inOrOut: CommonTypes.PortType) (hostId: CommonTypes.Compone
         Width = busWidth //new field used to add bus width of ports
     }
 
-let newSymbolTemplate (comptype: CommonTypes.ComponentType) (pos:XYPos) (h: int) (w: int) (numberOfInputs: int) (numberOfOutputs: int) (busWidth: int): Symbol =
+let newSymbolTemplate 
+    (comptype: CommonTypes.ComponentType) (pos:XYPos) 
+    (h: int) (w: int) (numberOfInputs: int) 
+    (numberOfOutputs: int) (busWidth: int): Symbol =
+    let id = 
+        CommonTypes.ComponentId (Helpers.uuid())
     {
         Pos = pos
         LastDragPos = {X=0. ; Y=0.} // initial value can always be this
@@ -223,17 +235,23 @@ let newSymbolTemplate (comptype: CommonTypes.ComponentType) (pos:XYPos) (h: int)
         IsSelected = false
         IsHovered = false
         IsOverlapped = false
-        Id = CommonTypes.ComponentId (Helpers.uuid()) // create a unique id for this symbol
+        Id = id // create a unique id for this symbol
         Type = comptype
         Label = ""
         InputPorts = 
             [0..(numberOfInputs-1)]
             |> List.map (fun x -> 
-                (newPortTemplate CommonTypes.PortType.Input (CommonTypes.ComponentId (Helpers.uuid())) x busWidth pos h w numberOfInputs))
+                (newPortTemplate 
+                    CommonTypes.PortType.Input 
+                    id
+                    x busWidth pos h w numberOfInputs))
         OutputPorts = 
             [0..(numberOfOutputs-1)]
             |> List.map (fun x -> 
-                (newPortTemplate CommonTypes.PortType.Output (CommonTypes.ComponentId (Helpers.uuid())) x busWidth pos h w numberOfOutputs))
+                (newPortTemplate 
+                    CommonTypes.PortType.Output 
+                    id
+                    x busWidth pos h w numberOfOutputs))
         ExpandedPort = None
         Vertices = calcVertices pos h w
         H = h
@@ -532,7 +550,10 @@ let private renderSymbol =
                | Some CommonTypes.PortType.Output, false ->
                    portRadius, expandedPortRadius, "none", "#2f5e5e" 
 
-            let createPortShapeAndLabel (i:int) (el: string) (color: string) (radius: float) (portType: CommonTypes.PortType)= 
+            let createPortShapeAndLabel 
+                (i:int) (el: string) (color: string) 
+                (radius: float) (portType: CommonTypes.PortType)
+                : ReactElement = 
                 g[][circle [
                             if portType = CommonTypes.PortType.Input then
                                 Cx props.Symbol.InputPorts.[i].Pos.X; 
