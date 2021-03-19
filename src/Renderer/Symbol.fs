@@ -1,4 +1,4 @@
-﻿module Symbol
+module Symbol
 open Fable.React
 open Fable.React.Props
 open Browser

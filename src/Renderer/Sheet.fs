@@ -1,4 +1,4 @@
-﻿module Sheet
+module Sheet
 open Fable.React
 open Fable.React.Props
 open Browser
