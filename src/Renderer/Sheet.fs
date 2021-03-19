@@ -12,9 +12,7 @@ open Helpers
 
 type CompInfo = {
     PortWidth: int
-    ComponentLabel: string
-    NumInputPorts: int
-    NumOutputPorts: int
+    ConstValue: int
     }
 
 type DragBoxType = {
@@ -49,11 +47,9 @@ type KeyboardMsg =
 type Msg =
     | Wire of BusWire.Msg
     | KeyPress of KeyboardMsg
-    | CreateSymbol of float * float
+    | CreateSymbol of CommonTypes.ComponentType * float * float
     | ChangeWireWidth of int
-    | ChangeCompLabel of string
-    | ChangeNumInputPorts of int
-    | ChangeNumOutputPorts of int
+    | ChangeConstValue of int
     | MouseMsg of MouseT
 
 
@@ -61,6 +57,16 @@ type Msg =
 //------------------------------------------------------------------------//
 //---------------------------Helper Functions-----------------------------//
 //------------------------------------------------------------------------//
+let defaultMemory : CommonTypes.Memory = {
+    AddressWidth = 0
+        // How wide each memory word should be, in bits.
+    WordWidth = 3
+        // Data is a list of <2^AddressWidth> elements, where each element is a
+        // 64 bit integer. This makes words longer than 64 bits not supported.
+        // This can be changed by using strings instead of int64, but that is way
+        // less memory efficient.
+    Data = Map.empty
+}
 
 // obtains the right-side menu to obtain user inputs (e.g. symbol type, name
 // of components, number of input and output ports, port width, etc.)
@@ -234,24 +240,9 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                 ]
                             ] [str "Module Selection"]
                       ] 
-                      
-                      // user input component name
-                      div [ Style [PaddingTop "5vh"]][
-                          input [   
-                                    Type "text"
-                                    Placeholder "component name"
-                                    OnChange (fun ev -> dispatch (ChangeCompLabel (ev.Value)))
 
-                                    Style [
-                                        Width "50%"
-                                        FontSize "1.5vh"
-                                        Height "3vh"
-                                    ]
-                                ]
-                      ]
-                       
                       // user input port width
-                      div [ Style [PaddingTop "2vh"]][
+                      div [ Style [PaddingTop "5vh"]][
                           input [
                                     Type "number"
                                     Placeholder "port width"
@@ -264,28 +255,13 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                     ]
                                 ]
                       ]
-                      
-                      // user input number of input ports
-                      div [ Style [PaddingTop "2vh"]][
-                          input [
-                                    Type "number"
-                                    Placeholder "number of input ports"
-                                    OnChange (fun ev -> dispatch (ChangeNumInputPorts (int ev.Value)))
 
-                                    Style [
-                                        Width "50%"
-                                        FontSize "1.5vh"
-                                        Height "3vh"
-                                    ]
-                                ]
-                      ]
-
-                      // user input number of output ports
-                      div [ Style [PaddingTop "2vh"]][
+                      // user input const value
+                      div [ Style [PaddingTop "2.5vh"; PaddingBottom "3vh"]][
                           input [   
                                     Type "number"
-                                    Placeholder "number of output ports"
-                                    OnChange (fun ev -> dispatch (ChangeNumOutputPorts (int ev.Value)))
+                                    Placeholder "constant comp value"
+                                    OnChange (fun ev -> dispatch (ChangeConstValue(int ev.Value)))
 
                                     Style [
                                         Width "50%"
@@ -294,51 +270,357 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                     ]
                                 ]
                       ]
+                       
+                    // ------------------------ USED FOR USER-DEFINED INPUT / OUTPUT PORTS ------------------------
+                    //   // user input number of input ports
+                    //   div [ Style [PaddingTop "2.5vh"]][
+                    //       input [
+                    //                 Type "number"
+                    //                 Placeholder "number of input ports"
+                    //                 OnChange (fun ev -> dispatch (ChangeNumInputPorts (int ev.Value)))
 
-                      // user select to create module 1
-                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                    //                 Style [
+                    //                     Width "50%"
+                    //                     FontSize "1.5vh"
+                    //                     Height "3vh"
+                    //                 ]
+                    //             ]
+                    //   ]
+
+                    //   // user input number of output ports
+                    //   div [ Style [PaddingTop "2.5vh"]][
+                    //       input [   
+                    //                 Type "number"
+                    //                 Placeholder "number of output ports"
+                    //                 OnChange (fun ev -> dispatch (ChangeNumOutputPorts (int ev.Value)))
+
+                    //                 Style [
+                    //                     Width "50%"
+                    //                     FontSize "1.5vh"
+                    //                     Height "3vh"
+                    //                 ]
+                    //             ]
+                    //   ]
+                    // ------------------------------------------------------------------------------------------------
+
+                      div [ Style [Width "50%"; Float FloatOptions.Left]]  [
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
                             a [
                                 Style [
-                                    Height "5vh"
+                                    Height "3vh"
                                     TextAnchor "middle" 
                                     DominantBaseline "middle" 
-                                    FontSize "2.4vh"
+                                    FontSize "1.6vh"
                                     FontWeight "Bold"
                                     Fill "Gray" 
                                 ]
-                                OnClick (fun _ -> dispatch (CreateSymbol (40., 60.)))
-                            ][str "Module 1"]
-                      ] 
-
-                      // user select to create module 2
-                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Input(model.ComponentInfo.PortWidth), 40., 50.)))
+                            ][str "Input"]
+                          ]                     
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" 
+                                        DominantBaseline "middle" 
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" 
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Output(model.ComponentInfo.PortWidth), 40., 50.)))
+                                ][str "Output"]
+                          ]                     
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "5vh"
+                                        TextAnchor "middle" 
+                                        DominantBaseline "middle" 
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" 
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.BusSelection(model.ComponentInfo.PortWidth, 0), 40., 50.)))
+                                ][str "BusSelection"]
+                          ]                     
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" 
+                                        DominantBaseline "middle" 
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" 
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Constant(model.ComponentInfo.PortWidth, model.ComponentInfo.ConstValue), 40., 50.)))
+                                ][str "Constant"]
+                          ]
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" 
+                                        DominantBaseline "middle" 
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" 
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Not, 40., 50.)))
+                                ][str "Not"]
+                          ]  
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Or, 60., 50.)))
+                                ][str "Or"]
+                          ]
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.And, 60., 50.)))
+                                ][str "And"]
+                          ]
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Nor, 60., 50.)))
+                                ][str "Nor"]
+                          ]
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
                             a [
                                 Style [
-                                    Height "5vh"
+                                    Height "3vh"
                                     TextAnchor "middle" // horizontal algnment vs (X,Y)
                                     DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                    FontSize "2.4vh"
+                                    FontSize "1.6vh"
                                     FontWeight "Bold"
                                     Fill "Gray" // font color
                                 ]
-                                OnClick (fun _ -> dispatch (CreateSymbol (60., 90.)))
-                            ][str "Module 2"]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Xor, 60., 50.)))
+                            ][str "Xor"]
+                          ]
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Nand, 60., 50.)))
+                                ][str "Nand"]
+                            ]
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Xnor, 60., 50.)))
+                                ][str "Xnor"]
+                           ]
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Decode4, 200., 80.)))
+                                ][str "Decode4"]
+                           ]
+                      ]
+
+                      div [ Style [Width "50%"; Float FloatOptions.Left]]  [
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Mux2, 60., 50.)))
+                                ][str "Mux2"]
+                            ]
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Demux2, 60., 50.)))
+                                ][str "Demux2"]
+                          ]         
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.NbitsAdder(model.ComponentInfo.PortWidth), 150., 100.)))
+                                ][str "NbitsAdder"]
+                            ]
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.MergeWires, 60., 70.)))
+                                ][str "MergeWires"]
+                            ]                          
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.SplitWire(model.ComponentInfo.PortWidth), 60., 70.)))
+                                ][str "SplitWire"]
+                            ]  
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.DFF, 60., 50.)))
+                                ][str "DFF"]
+                            ] 
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.DFFE, 100., 80.)))
+                                ][str "DFFE"]
+                            ] 
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Register(model.ComponentInfo.PortWidth), 100., 120.)))
+                                ][str "Register"]
+                            ] 
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.RegisterE(model.ComponentInfo.PortWidth), 100., 120.)))
+                                ][str "RegisterE"]
+                            ]  
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.AsyncROM(defaultMemory), 150., 100.)))
+                                ][str "AsyncROM"]
+                            ] 
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.ROM(defaultMemory), 150., 100.)))
+                                ][str "ROM"]
+                            ] 
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.RAM(defaultMemory), 150., 160.)))
+                                ][str "RAM"]
+                            ] 
                       ]
                       
-                      // user select to create module 3
-                      div [ Style [PaddingTop "4vh"; Margin "0"; PaddingBottom "0"]][
-                            a [
-                                Style [
-                                    Height "5vh"
-                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
-                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                    FontSize "2.4vh"
-                                    FontWeight "Bold"
-                                    Fill "Gray" // font color
-                                ]
-                                OnClick (fun _ -> dispatch (CreateSymbol (70., 70.)))
-                            ][str "Module 3"]
-                      ]
                   ]
             ]
         ]
@@ -364,65 +646,57 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         model, Cmd.none
 
     // draws new symbol
-    | CreateSymbol (width, height) ->
+    | CreateSymbol (compType, width, height) ->
 
         // finds position to insert new symbol (i.e. ensuring no collision with existing symbols)
         let pos = Symbol.findNextAvailablePos (model.Wire.Symbol) (width, height)
 
-        // define symbol vertices from: top left -> top right -> bottom right -> bottom left
-        let vertices = [{X=pos.X - width; Y=pos.Y - height}; {X=pos.X + width; Y=pos.Y - height}; {X=pos.X + width; Y=pos.Y + height}; {X=pos.X - width; Y=pos.Y + height}]
-
-        // all other information comes from user input
+        // user-defined port width
         let portWidth = model.ComponentInfo.PortWidth
-        let label = model.ComponentInfo.ComponentLabel
-        let inputPortLength = model.ComponentInfo.NumInputPorts
-        let outputPortLength = model.ComponentInfo.NumOutputPorts
 
         // return updated model
-        let newModel, newCmd = Symbol.update (Symbol.Msg.AddSymbol (pos, portWidth, label, vertices, inputPortLength, outputPortLength)) model.Wire.Symbol
+        let newModel, newCmd = Symbol.update (Symbol.Msg.AddSymbol (compType, portWidth, pos)) model.Wire.Symbol
         {model with Wire = {model.Wire with Symbol = newModel}}, newCmd
 
     // deletes symbol
     | KeyPress DEL ->
-        // find whether a wire is selected
-        let selectedWireId = BusWire.findSelectedWire (model.Wire)
-
-        match selectedWireId with
-        // if wire is selected, delete the wire
-        | Some wireId ->
-            let newModel, _ = BusWire.update (BusWire.Msg.DeleteWire wireId) model.Wire
-            {model with Wire = newModel}, Cmd.none
-
-        // otherwise, delete all symbols and wires connected to it
-        | _ -> 
-            let newModel, _ = BusWire.update (BusWire.Msg.DeleteWiresBySymbol) model.Wire
-            {model with Wire = newModel}, Cmd.none
+        let newModel, _ = BusWire.update (BusWire.Msg.DeleteWiresBySymbol) model.Wire
+        {model with Wire = newModel}, Cmd.none
 
     // sets color for model
     | KeyPress s -> 
-        let c =
-            match s with
-            | AltC -> CommonTypes.Blue
-            | AltZ -> CommonTypes.Red
-            | _ -> CommonTypes.Grey
-        printfn "Key:%A" c
-        model, Cmd.ofMsg (Wire <| BusWire.SetColor c)
+        match s with
+        | AltC -> 
+            let newWires, _ = BusWire.update (BusWire.Msg.CopyWires) model.Wire
+            {model with Wire = newWires}, Cmd.none
+
+        | AltV -> 
+            let newWires, _ = BusWire.update (BusWire.Msg.PasteWires) model.Wire
+            {model with Wire = newWires}, Cmd.none
+        
+        | _ ->
+            model, Cmd.none
+        
 
     // change the port width to user-defined port width
     | ChangeWireWidth portWidth ->
         {model with ComponentInfo = {model.ComponentInfo with PortWidth = portWidth}}, Cmd.none
 
     // change component label to user-defined component label
-    | ChangeCompLabel compName ->
-        {model with ComponentInfo = {model.ComponentInfo with ComponentLabel = compName}}, Cmd.none
+    | ChangeConstValue value ->
+        {model with ComponentInfo = {model.ComponentInfo with ConstValue = value}}, Cmd.none
 
-    // change number of input ports to user-defined number of input ports
-    | ChangeNumInputPorts numInputPorts ->
-        {model with ComponentInfo = {model.ComponentInfo with NumInputPorts = numInputPorts}}, Cmd.none
 
-    // change number of output ports to user-defined number of output ports
-    | ChangeNumOutputPorts numOutputPorts ->
-        {model with ComponentInfo = {model.ComponentInfo with NumOutputPorts = numOutputPorts}}, Cmd.none
+    // ------------------------------ FOR USER-DEFINED INPUT / OUTPUT PORTS -----------------------------------
+    // // change number of input ports to user-defined number of input ports
+    // | ChangeNumInputPorts numInputPorts ->
+    //     {model with ComponentInfo = {model.ComponentInfo with NumInputPorts = numInputPorts}}, Cmd.none
+
+    // // change number of output ports to user-defined number of output ports
+    // | ChangeNumOutputPorts numOutputPorts ->
+    //     {model with ComponentInfo = {model.ComponentInfo with NumOutputPorts = numOutputPorts}}, Cmd.none
+    // ---------------------------------------------------------------------------------------------------------
+
 
     // handles mouse operations
     | MouseMsg mMsg ->
@@ -451,9 +725,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             // performed for symbol being clicked. Once integrated, symbol will also be checked.
             match selectedPort, isAnythingDragging with
             | _, true -> 
-                // send mouse message to Buswire
-                let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg mMsg) model.Wire
-                {model with Wire=updatedWire}, Cmd.none
+                // send mouse message to Buswire if no symbol is dragging
+                if symbolDraggingCheck then model, Cmd.none
+                else
+                    let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg mMsg) model.Wire
+                    {model with Wire=updatedWire}, Cmd.none
 
             | None, false ->
                 // initialize DragBox and DragWire
@@ -489,11 +765,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     let updatedWire, _ = 
                         model.Wire
                         |> BusWire.update (BusWire.Msg.DeleteWire (wire.Id))
-
+                    
                     // update symbol to highlight available ports
                     let newSymbol = 
                         model.Wire.Symbol
-                        |> Symbol.update (Symbol.Msg.ExpandPort (model.DragWire.DraggingPort, wire.SrcPort.Width))
+                        |> Symbol.update (Symbol.Msg.ExpandPort (port.PortType, wire.SrcPort.Width))
                         |> fst
 
                     {model with Wire={model.Wire with WX=updatedWire.WX; Symbol=newSymbol}; DragBox=newDragBox; DragWire=newDragWire}, Cmd.none
@@ -532,18 +808,20 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 | false -> fst (Symbol.update (Symbol.Msg.BoxSelected (model.DragBox.Edge1, model.DragBox.Edge2)) model.Wire.Symbol)
                 |> List.map (fun sym -> {sym with ExpandedPort = None})
 
+            let updatedWire, _ = BusWire.update (BusWire.Msg.SelectWiresFromSymbol) {model.Wire with Symbol=newSymbol}
+
             // find if mouse up occurs at any port
             let selectedPort = Symbol.findPortByPosition model.Wire.Symbol pos
 
             match selectedPort with
             // if no port selected, return model with updated symbol
             | None ->
-                {model with Wire={model.Wire with Symbol=newSymbol}; DragBox=resetDragBox; DragWire=resetDragWire}, Cmd.none
+                {model with Wire=updatedWire; DragBox=resetDragBox; DragWire=resetDragWire}, Cmd.none
             
             // if port selected, add new wire between two ports if wire was dragging
             | Some port ->
                 match model.DragWire.isDragging with
-                | false -> {model with Wire={model.Wire with Symbol=newSymbol}; DragBox=resetDragBox}, Cmd.none
+                | false -> {model with Wire=updatedWire; DragBox=resetDragBox}, Cmd.none
 
                 | true -> 
                     let startDragPort = 
@@ -560,12 +838,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     match startDragPort with
                     | Some originPort ->
                         // return updated model
-                        let newWire, _ = BusWire.update (BusWire.Msg.AddWire (originPort, port)) (model.Wire)
-                        {model with Wire={model.Wire with WX=newWire.WX; Symbol=newSymbol}; DragBox=resetDragBox}, Cmd.none
+                        let newWire, _ = BusWire.update (BusWire.Msg.AddWire (originPort, port)) (updatedWire)
+                        {model with Wire=newWire; DragBox=resetDragBox}, Cmd.none
 
                     | None ->
                         // return updated model
-                        {model with Wire={model.Wire with Symbol=newSymbol}; DragBox=resetDragBox}, Cmd.none
+                        {model with Wire=updatedWire; DragBox=resetDragBox}, Cmd.none
 
         // mouse drag
         | Drag ->
@@ -594,12 +872,17 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 | true, CommonTypes.PortType.Output ->
                     {model.DragWire with TargetEdge=pos}
             
-            // send mouse message to Buswire
-            let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg mMsg) model.Wire
+            // send mouse message to Buswire if no symbol dragging
+            let symbolDraggingCheck = Symbol.isAnySymbolDragging (model.Wire.Symbol)
 
-            // return updated model
-            {model with Wire=updatedWire; DragBox=newDragBox; DragWire = newDragWire}, Cmd.none
-
+            match symbolDraggingCheck with 
+            | true -> 
+                {model with DragBox=newDragBox; DragWire=newDragWire}, Cmd.none
+            
+            | false ->
+                // send message to buswire
+                let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg mMsg) model.Wire
+                {model with Wire=updatedWire; DragBox=newDragBox; DragWire = newDragWire}, Cmd.none
 
         // mouse move
         | Move -> 
@@ -637,7 +920,7 @@ let init() =
 
     {
         Wire = model
-        ComponentInfo = {PortWidth = 1; ComponentLabel = "C1"; NumInputPorts = 1; NumOutputPorts = 1}
+        ComponentInfo = {PortWidth = 1; ConstValue = 1}
         DragBox=dragBoxInit
         DragWire=dragWireInit
 

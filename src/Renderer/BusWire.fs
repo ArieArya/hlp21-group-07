@@ -20,6 +20,7 @@ type Wire = {
     SegmentSelected: (XYPos*XYPos) option // Stores which line segment has been selected
     Width: int 
     ShowLegend: bool
+    IsCopied: bool
     }
 
 type Model = {
@@ -42,6 +43,9 @@ type Msg =
     | SetColor of CommonTypes.HighLightColor
     | MouseMsg of MouseT
     | DeleteWiresBySymbol
+    | SelectWiresFromSymbol
+    | CopyWires
+    | PasteWires
 
 
 
@@ -58,7 +62,9 @@ let convertPoly inpList =
                                 elif c = ' ' then ""
                                 else string c)
 
-
+/// Adds two XYPos components
+let posAdd a b =
+    {X=a.X+b.X; Y=a.Y+b.Y}
 
 //------------------------------------------------------------------------//
 //-------------------------View Function for BusWire----------------------//
@@ -210,7 +216,7 @@ let view (model:Model) (dispatch: Dispatch<Msg>)=
     let wires = 
         wireModel
         |> List.map (fun w ->
-            let col = if (w.IsSelected) then "Blue" else model.Color.Text()
+            let col = if (w.IsSelected) then CommonTypes.CustomColorLightBlue.Text() else model.Color.Text()
             let props = {
                 key = w.Id
                 WireP = w
@@ -228,7 +234,7 @@ let init n () =
     let symIds = List.map (fun (sym:Symbol.Symbol) -> sym.Id) symbols
     let rng = System.Random 0
     []
-    |> (fun wires -> {WX=wires;Symbol=symbols; Color=CommonTypes.Red},Cmd.none)
+    |> (fun wires -> {WX=wires;Symbol=symbols; Color=CommonTypes.CustomColorDarkBlue},Cmd.none)
 
 let makeWireFromPorts (srcPort) (targetPort) (points: XYPos list) (width: int) : Wire=
         {
@@ -236,11 +242,12 @@ let makeWireFromPorts (srcPort) (targetPort) (points: XYPos list) (width: int) :
             SrcPort = srcPort
             TargetPort = targetPort
             Points = points
-            DidUserModifyPoint=generateFalses (List.length points)
+            DidUserModifyPoint = generateFalses (List.length points)
             SegmentSelected = None
             IsSelected = false
             Width = width
             ShowLegend = true
+            IsCopied = false
         }
 
 let wasMouseBetweenPoints mousePos points = 
@@ -389,18 +396,70 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with WX=newWireModel}, Cmd.none
 
     | DeleteWiresBySymbol ->
-        let newWX = List.filter (fun wire -> not (Symbol.isSymbolSelected model.Symbol wire.SrcPort.HostId || Symbol.isSymbolSelected model.Symbol wire.TargetPort.HostId)) model.WX
+        let remSelectedWires = List.filter (fun wire -> not wire.IsSelected) model.WX
+        let newWX = List.filter (fun wire -> not (Symbol.isSymbolSelected model.Symbol wire.SrcPort.HostId || Symbol.isSymbolSelected model.Symbol wire.TargetPort.HostId)) remSelectedWires
         let newSymbolModel, _ = Symbol.update (Symbol.Msg.DeleteSymbol) model.Symbol
         {model with WX = newWX; Symbol=newSymbolModel}, Cmd.none
 
     | MouseMsg mMsg -> 
         handleMouseForWires model mMsg, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
 
+    | SelectWiresFromSymbol ->
+        let newWX = 
+            model.WX
+            |> List.map (fun wire -> 
+                            let isSrcPortHostSelected = Symbol.isSymbolSelected (model.Symbol) (wire.SrcPort.HostId)
+                            let isTargetPortHostSelected = Symbol.isSymbolSelected (model.Symbol) (wire.TargetPort.HostId)
 
-let findSelectedWire (wModel: Model) : CommonTypes.ConnectionId option = 
-    wModel.WX
-    |> List.tryFind (fun wire -> wire.IsSelected) 
-    |> Option.map (fun wire -> wire.Id)
+                            if isSrcPortHostSelected && isTargetPortHostSelected then {wire with IsSelected = true}
+                            else wire)
+        
+        {model with WX=newWX}, Cmd.none
+
+
+    | CopyWires -> 
+        let newSymbols, _ = Symbol.update (Symbol.Msg.CopySymbols) model.Symbol
+
+        let newWX = 
+            model.WX 
+            |> List.map (fun wire ->
+                            if wire.IsSelected then {wire with IsCopied = true}
+                            else {wire with IsCopied = false}
+                            )
+
+        {model with WX=newWX; Symbol=newSymbols}, Cmd.none
+
+
+    | PasteWires ->
+        let pasteMargin = {X=50.; Y=70.}
+
+        let newSymbols, _ = Symbol.update (Symbol.Msg.PasteSymbols pasteMargin) model.Symbol 
+
+        let newWX = 
+            model.WX
+            |> List.collect (fun wire -> 
+                            match wire.IsCopied with 
+                            | false -> [wire]
+                            | true ->
+                                let newSrcPos = posAdd wire.SrcPort.Pos pasteMargin
+                                let newTargetPos = posAdd wire.TargetPort.Pos pasteMargin
+
+                                let newSrcPort = Symbol.findPortByPosition newSymbols newSrcPos
+                                let newTargetPort = Symbol.findPortByPosition newSymbols newTargetPos
+
+                                match newSrcPort, newTargetPort with 
+                                | Some srcPort, Some targetPort -> 
+                                    // create new wire 
+                                    let wirePoints = getInitialWirePoints newSrcPos newTargetPos
+                                    let newWire = makeWireFromPorts (srcPort) (targetPort) wirePoints (srcPort.Width)
+                                    [{wire with IsSelected=false}; {newWire with IsSelected=true}]
+                                
+                                | _ -> [wire]
+                            )
+
+        {model with WX=newWX; Symbol=newSymbols}, Cmd.none
+
+
 
 
 //------------------------------------------------------------------------//
