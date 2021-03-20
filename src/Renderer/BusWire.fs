@@ -53,15 +53,6 @@ type Msg =
 //---------------------------Helper Functions-----------------------------//
 //------------------------------------------------------------------------//
 
-/// Converts list of coordinates to a string for SVG Polygon or Polyline. For example,
-/// [(1, 2); (3, 4); (5, 6)] becomes "1,2 3,4 5,6", which is the correct SVG format
-let convertPoly inpList = 
-    string(inpList)
-    |> String.collect (fun c -> if c = '(' || c = ')' || c = '[' || c = ']' then ""
-                                elif c = ';' then " "
-                                elif c = ' ' then ""
-                                else string c)
-
 /// Adds two XYPos components
 let posAdd a b =
     {X=a.X+b.X; Y=a.Y+b.Y}
@@ -490,37 +481,68 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
 
     | PasteWires ->
-        let pasteMargin = {X=50.; Y=70.}
+        let pasteMargin = {X=80.; Y=80.}
 
         let newSymbols, _ = Symbol.update (Symbol.Msg.PasteSymbols pasteMargin) model.Symbol 
 
-        let newWX = 
-            model.WX
-            |> List.collect (fun wire -> 
-                            match wire.IsCopied with 
-                            | false -> [wire]
-                            | true ->
-                                let newSrcPos = posAdd wire.SrcPort.Pos pasteMargin
-                                let newTargetPos = posAdd wire.TargetPort.Pos pasteMargin
+        let rec getWireSymbolModel (wireList: Wire list) (finalSymModel) (finalWireModel: Wire list) = 
+            match wireList with 
+            | [] -> finalSymModel, finalWireModel
+            | (hdWire::tl) ->
+                    match hdWire.IsCopied with 
+                    | false -> getWireSymbolModel tl finalSymModel (hdWire::finalWireModel)
+                    | true ->
+                        let newSrcPos = posAdd hdWire.SrcPort.Pos pasteMargin
+                        let newTargetPos = posAdd hdWire.TargetPort.Pos pasteMargin
 
-                                let newSrcPort = Symbol.findPortByPosition newSymbols newSrcPos
-                                let newTargetPort = Symbol.findPortByPosition newSymbols newTargetPos
+                        let newSrcPort = Symbol.findPortByPosition newSymbols newSrcPos
+                        let newTargetPort = Symbol.findPortByPosition newSymbols newTargetPos
 
-                                match newSrcPort, newTargetPort with 
-                                | Some srcPort, Some targetPort -> 
-                                    // create new wire if possible
-                                    match srcPort.Width with 
-                                    | Some width ->
-                                        let wirePoints = getInitialWirePoints newSrcPos newTargetPos
-                                        let newWire = makeWireFromPorts (srcPort) (targetPort) wirePoints (width)
-                                        [{wire with IsSelected=false}; {newWire with IsSelected=true}]
+                        match newSrcPort, newTargetPort with 
+                        | Some srcPort, Some targetPort -> 
+                            match targetPort.Width, srcPort.Width with
+                            | Some a, Some b when a = b ->
+                                let srcPortPos = srcPort.Pos
+                                let targetPortPos = targetPort.Pos
+                                let wirePoints = getInitialWirePoints srcPortPos targetPortPos
+                                let newWire = makeWireFromPorts (srcPort) (targetPort) wirePoints (a)
+                                getWireSymbolModel tl finalSymModel (hdWire::(newWire::finalWireModel))
 
-                                    | None -> [{wire with IsSelected=false}]
+                            | Some a, None ->
+                                let newSymModel, isValid = Symbol.portInference finalSymModel srcPort a
+                                if isValid then
+                                    let newSrcPort = {srcPort with Width = Some a}
+                                    let srcPortPos = newSrcPort.Pos
+                                    let targetPortPos = targetPort.Pos
+                                    let wirePoints = getInitialWirePoints srcPortPos targetPortPos
+                                    let newWire = makeWireFromPorts (newSrcPort) (targetPort) wirePoints (a)
+                                    getWireSymbolModel tl newSymModel (hdWire::(newWire::finalWireModel))
+                                    
+                                else 
+                                    getWireSymbolModel tl finalSymModel (hdWire::finalWireModel)
 
-                                | _ -> [wire]
-                            )
+                            | None, Some a ->
+                                let newSymModel, isValid = Symbol.portInference finalSymModel targetPort a
+                                if isValid then
+                                    let newTargetPort = {targetPort with Width = Some a}
+                                    let srcPortPos = srcPort.Pos
+                                    let targetPortPos = newTargetPort.Pos
+                                    let wirePoints = getInitialWirePoints srcPortPos targetPortPos
+                                    let newWire = makeWireFromPorts (srcPort) (newTargetPort) wirePoints (a)
+                                    getWireSymbolModel tl newSymModel (hdWire::(newWire::finalWireModel))
+                                else 
+                                    getWireSymbolModel tl finalSymModel (hdWire::finalWireModel)
 
-        {model with WX=newWX; Symbol=newSymbols}, Cmd.none
+                            | _ ->
+                                getWireSymbolModel tl finalSymModel (hdWire::finalWireModel)
+                                
+
+                        | _ -> getWireSymbolModel tl finalSymModel (hdWire::finalWireModel)
+
+        
+        let newSymModel, newWX = getWireSymbolModel (model.WX) newSymbols []
+
+        {model with WX=newWX; Symbol=newSymModel}, Cmd.none
 
 
 

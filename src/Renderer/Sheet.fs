@@ -1,4 +1,4 @@
-module Sheet
+﻿module Sheet
 open Fable.React
 open Fable.React.Props
 open Browser
@@ -328,7 +328,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" 
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Not, 40., 50.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Not, 60., 60.)))
                                 ][str "Not"]
                           ]    
                           // Or
@@ -342,7 +342,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Or, 60., 70.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Or, 60., 60.)))
                                 ][str "Or"]
                           ]
                           // And
@@ -356,7 +356,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.And, 60., 70.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.And, 60., 60.)))
                                 ][str "And"]
                           ] 
                       ]
@@ -373,7 +373,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Nor, 60., 70.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Nor, 60., 60.)))
                                 ][str "Nor"]
                           ]
 
@@ -388,7 +388,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                     FontWeight "Bold"
                                     Fill "Gray" // font color
                                 ]
-                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Xor, 60., 70.)))
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Xor, 60., 60.)))
                             ][str "Xor"]
                           ]
 
@@ -403,7 +403,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Nand, 60., 70.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Nand, 60., 60.)))
                                 ][str "Nand"]
                             ]
                       ]
@@ -420,7 +420,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Xnor, 60., 70.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Xnor, 60., 60.)))
                                 ][str "Xnor"]
                            ]
 
@@ -435,7 +435,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Decode4, 170., 100.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Decode4, 180., 100.)))
                                 ][str "Decode4"]
                            ]
 
@@ -450,7 +450,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Mux2, 70., 50.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Mux2, 60., 60.)))
                                 ][str "Mux2"]
                             ]
                       ]
@@ -467,7 +467,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Demux2, 70., 50.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Demux2, 60., 60.)))
                                 ][str "Demux2"]
                           ]  
                           // DFF
@@ -481,7 +481,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.DFF, 60., 50.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.DFF, 100., 60.)))
                                 ][str "DFF"]
                             ] 
                           
@@ -496,7 +496,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.DFFE, 100., 80.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.DFFE, 100., 60.)))
                                 ][str "DFFE"]
                             ]        
                       ]
@@ -513,7 +513,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                     FontWeight "Bold"
                                     Fill "Gray" 
                                 ]
-                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Input(model.ComponentInfo.InputWidth), 30., 60.)))
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Input(model.ComponentInfo.InputWidth), 20., 60.)))
                             ][str "Input"]
                           ] 
                           div [ Style [PaddingTop "0.5vh"]][
@@ -545,7 +545,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" 
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Output(model.ComponentInfo.OutputWidth), 30., 60.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Output(model.ComponentInfo.OutputWidth), 20., 60.)))
                                 ][str "Output"]
                           ]     
                           div [ Style [PaddingTop "0.5vh"]][
@@ -577,7 +577,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" 
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.BusSelection(model.ComponentInfo.BusSelectionOutWidth, model.ComponentInfo.BusSelectionLSB), 30., 60.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.BusSelection(model.ComponentInfo.BusSelectionOutWidth, model.ComponentInfo.BusSelectionLSB), 20., 60.)))
                                 ][str "BusSelection"]
                           ] 
                           div [ Style [PaddingTop "0.5vh"]][
@@ -625,7 +625,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" 
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Constant(model.ComponentInfo.ConstantWidth, model.ComponentInfo.ConstantValue), 20., 50.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Constant(model.ComponentInfo.ConstantWidth, model.ComponentInfo.ConstantValue), 20., 60.)))
                                 ][str "Constant"]
                           ]
                           div [ Style [PaddingTop "0.5vh"]][
@@ -677,7 +677,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                                 WordWidth = model.ComponentInfo.AsyncROMOutWidth
                                                 Data = Map.empty
                                             }
-                                            dispatch (CreateSymbol (CommonTypes.ComponentType.AsyncROM(curMemory), 150., 100.)))
+                                            dispatch (CreateSymbol (CommonTypes.ComponentType.AsyncROM(curMemory), 140., 100.)))
                                 ][str "AsyncROM"]
                             ] 
                           div [ Style [PaddingTop "0.5vh"]][
@@ -730,7 +730,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                                 WordWidth = model.ComponentInfo.ROMOutWidth
                                                 Data = Map.empty
                                             }
-                                            dispatch (CreateSymbol (CommonTypes.ComponentType.ROM(curMemory), 150., 100.)))
+                                            dispatch (CreateSymbol (CommonTypes.ComponentType.ROM(curMemory), 140., 100.)))
                                 ][str "ROM"]
                             ] 
                           div [ Style [PaddingTop "0.5vh"]][
@@ -783,7 +783,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                                 WordWidth = model.ComponentInfo.RAMOutWidth
                                                 Data = Map.empty
                                             }
-                                            dispatch (CreateSymbol (CommonTypes.ComponentType.RAM(curMemory), 150., 160.)))
+                                            dispatch (CreateSymbol (CommonTypes.ComponentType.RAM(curMemory), 140., 140.)))
                                 ][str "RAM"]
                             ] 
                           div [ Style [PaddingTop "0.5vh"]][
@@ -818,9 +818,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                     ]
                                  ]
                             ]
-                          
                       ]
-                       
                       
                       div [ Style [Width "50%"; Float FloatOptions.Left]]  [
                           // N-Bit Adder
@@ -834,7 +832,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.NbitsAdder(model.ComponentInfo.AdderBits), 150., 100.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.NbitsAdder(model.ComponentInfo.AdderBits), 140., 100.)))
                                 ][str "NbitsAdder"]
                             ]
                           div [ Style [PaddingTop "0.5vh"]][
@@ -866,7 +864,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.MergeWires, 80., 80.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.MergeWires, 100., 100.)))
                                 ][str "MergeWires"]
                             ]           
 
@@ -881,7 +879,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.SplitWire(model.ComponentInfo.SplitOutWidth), 80., 80.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.SplitWire(model.ComponentInfo.SplitOutWidth), 100., 100.)))
                                 ][str "SplitWire"]
                             ]  
                           div [ Style [PaddingTop "0.5vh"]][
@@ -913,7 +911,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Register(model.ComponentInfo.RegWidth), 100., 120.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Register(model.ComponentInfo.RegWidth), 140., 100.)))
                                 ][str "Register"]
                             ] 
                           div [ Style [PaddingTop "0.5vh"]][
@@ -944,7 +942,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.RegisterE(model.ComponentInfo.RegEnabledWidth), 100., 120.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.RegisterE(model.ComponentInfo.RegEnabledWidth), 140., 100.)))
                                 ][str "RegisterE"]
                             ] 
                           div [ Style [PaddingTop "0.5vh"]][
@@ -975,7 +973,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.IOLabel, 100., 80.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.IOLabel, 20., 60.)))
                                 ][str "IOLabel"]
                             ] 
                           div [ Style [PaddingTop "0.5vh"]][
@@ -1045,8 +1043,8 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
 
                                             let height = 
                                                 match custComp.InputLabels.Length >= custComp.OutputLabels.Length with 
-                                                | true -> (float custComp.InputLabels.Length) * 40.
-                                                | false -> (float custComp.OutputLabels.Length) * 40.
+                                                | true -> (float custComp.InputLabels.Length) * 40. + 20.
+                                                | false -> (float custComp.OutputLabels.Length) * 40. + 20.
 
                                             dispatch (CreateSymbol (CommonTypes.ComponentType.Custom(custComp), 140., height)))
 
