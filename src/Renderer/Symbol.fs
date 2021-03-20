@@ -1,4 +1,4 @@
-module Symbol
+﻿module Symbol
 open Fable.React
 open Fable.React.Props
 open Browser
@@ -603,6 +603,26 @@ let wireLines
         ][]
     ]
  
+let clockTriangle
+    (vertices: XYPos List) (clkPortPos: XYPos): ReactElement List =
+    [
+        line
+            [
+                X1 clkPortPos.X; 
+                Y1 (clkPortPos.Y + 5.);
+                X2 (clkPortPos.X + 5.); 
+                Y2 clkPortPos.Y; 
+                Style [Stroke "Black"]
+            ][];
+        line
+            [
+                X1 (clkPortPos.X); 
+                Y1 (clkPortPos.Y - 5.);
+                X2 (clkPortPos.X + 5.); 
+                Y2 clkPortPos.Y;
+                Style [Stroke "Black"]
+            ][]
+    ]
 
 /// Renders a single symbol including its ports, portNumber, and label
 let private renderShape =
@@ -826,19 +846,23 @@ let private renderShape =
                     @ (title "SplitWire") 
                     @ wireLines vertices props.Shape.Pos props.Shape.H true
                 | DFF ->
-                    (portLabels ["D"; "clk"] CommonTypes.PortType.Input) 
+                    clockTriangle vertices props.Shape.InputPorts.[1].Pos 
+                    @ (portLabels ["D"; "clk"] CommonTypes.PortType.Input) 
                     @ (portLabels ["Q"] CommonTypes.PortType.Output) 
                     @ (title "DFF")
                 | DFFE ->
-                    (portLabels ["D"; "clk"; "EN"] CommonTypes.PortType.Input) 
+                    clockTriangle vertices props.Shape.InputPorts.[1].Pos 
+                    @ (portLabels ["D"; "clk"; "EN"] CommonTypes.PortType.Input) 
                     @ (portLabels ["Q"] CommonTypes.PortType.Output) 
                     @ (title "DFFE")
                 | Register busWidth -> 
-                    (portLabels ["data-in"; "clk"] CommonTypes.PortType.Input) 
+                    clockTriangle vertices props.Shape.InputPorts.[1].Pos 
+                    @ (portLabels ["data-in"; "clk"] CommonTypes.PortType.Input) 
                     @ (portLabels ["data-out"] CommonTypes.PortType.Output) 
                     @ (title (sprintf "REG%d" busWidth))
                 | RegisterE busWidth ->
-                    (portLabels ["data-in"; "clk"; "EN"] CommonTypes.PortType.Input) 
+                    clockTriangle vertices props.Shape.InputPorts.[1].Pos 
+                    @ (portLabels ["data-in"; "clk"; "EN"] CommonTypes.PortType.Input) 
                     @ (portLabels ["data-out"] CommonTypes.PortType.Output) 
                     @ (title (sprintf "REG%d" busWidth))                    
                 | AsyncROM mem -> 
@@ -846,11 +870,13 @@ let private renderShape =
                     @ (portLabels ["data"] CommonTypes.PortType.Output) 
                     @ (title "Async-ROM")
                 | ROM mem ->
-                    (portLabels ["addr"; "clk"] CommonTypes.PortType.Input) 
+                    clockTriangle vertices props.Shape.InputPorts.[1].Pos 
+                    @ (portLabels ["addr"; "clk"] CommonTypes.PortType.Input) 
                     @ (portLabels ["data"] CommonTypes.PortType.Output) 
                     @ (title "ROM")
                 | RAM mem ->
-                    (portLabels ["addr"; "data-in"; "write"; "clk"] CommonTypes.PortType.Input) 
+                    clockTriangle vertices props.Shape.InputPorts.[3].Pos 
+                    @ (portLabels ["addr"; "data-in"; "write"; "clk"] CommonTypes.PortType.Input) 
                     @ (portLabels ["data-out"] CommonTypes.PortType.Output) 
                     @ (title "RAM")
                 | Custom custCompType ->
