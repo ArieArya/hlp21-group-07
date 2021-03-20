@@ -364,24 +364,61 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 Some(p2, p1)
             | _ -> None
 
-        let matchWidths = port1.Width = port2.Width
+
+        // perform width inference
+        let matchWidths = 
+            match port1.Width, port2.Width with
+            | Some a, Some b when a = b -> true
+            | Some _, None -> true
+            | None, Some _ -> true
+            | _ -> false
 
         // if no port combinations possible, return the original model, otherwise
         // add new wire between the ports to the new model
         match matchPorts, matchWidths with
         | None, _ -> model, Cmd.none
-
         | _, false -> model, Cmd.none
 
         | Some (targetPort, srcPort), true ->
-            let srcPortPos = srcPort.Pos
-            let targetPortPos = targetPort.Pos
-            let wirePoints = getInitialWirePoints srcPortPos targetPortPos
-            let newWire = makeWireFromPorts (srcPort) (targetPort) wirePoints (srcPort.Width)
-            {model with WX=List.append model.WX [newWire]}, Cmd.none
+            match targetPort.Width, srcPort.Width with
+            | Some a, Some b ->
+                let srcPortPos = srcPort.Pos
+                let targetPortPos = targetPort.Pos
+                let wirePoints = getInitialWirePoints srcPortPos targetPortPos
+                let newWire = makeWireFromPorts (srcPort) (targetPort) wirePoints (a)
+                {model with WX=List.append model.WX [newWire]}, Cmd.none
+
+            | Some a, None ->
+                let newSymModel, isValid = Symbol.portInference model.Symbol srcPort a
+                if isValid then
+                    let newSrcPort = {srcPort with Width = Some a}
+                    let srcPortPos = newSrcPort.Pos
+                    let targetPortPos = targetPort.Pos
+                    let wirePoints = getInitialWirePoints srcPortPos targetPortPos
+                    let newWire = makeWireFromPorts (newSrcPort) (targetPort) wirePoints (a)
+                    {model with WX=List.append model.WX [newWire]; Symbol = newSymModel}, Cmd.none
+                else 
+                    model, Cmd.none
+
+            | None, Some a ->
+                let newSymModel, isValid = Symbol.portInference model.Symbol targetPort a
+                if isValid then
+                    let newTargetPort = {targetPort with Width = Some a}
+                    let srcPortPos = srcPort.Pos
+                    let targetPortPos = newTargetPort.Pos
+                    let wirePoints = getInitialWirePoints srcPortPos targetPortPos
+                    let newWire = makeWireFromPorts (srcPort) (newTargetPort) wirePoints (a)
+                    {model with WX=List.append model.WX [newWire]; Symbol = newSymModel}, Cmd.none
+                else 
+                    model, Cmd.none
+
+            | None, None ->
+                model, Cmd.none
+                
 
     | DeleteWire (conId) -> 
-        let wireRemoved = List.filter (fun w -> w.Id <>conId) (model.WX)
+        // filter out wire
+        let wireRemoved = List.filter (fun w -> w.Id <> conId) (model.WX)
         {model with WX=wireRemoved}, Cmd.none
 
     | SetColor c -> {model with Color = c}, Cmd.none
@@ -398,7 +435,25 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | DeleteWiresBySymbol ->
         let remSelectedWires = List.filter (fun wire -> not wire.IsSelected) model.WX
         let newWX = List.filter (fun wire -> not (Symbol.isSymbolSelected model.Symbol wire.SrcPort.HostId || Symbol.isSymbolSelected model.Symbol wire.TargetPort.HostId)) remSelectedWires
-        let newSymbolModel, _ = Symbol.update (Symbol.Msg.DeleteSymbol) model.Symbol
+        
+        let rec getSymbolModel (wireList: Wire list) (symModel) = 
+            match wireList with 
+            | [] -> symModel
+            | (hdWire::tl) ->
+                let srcPort = hdWire.SrcPort
+                let targetPort = hdWire.TargetPort
+                let updatedSrcSymbol = Symbol.variablePortReset (symModel) srcPort
+                let updatedTargetSymbol = Symbol.variablePortReset (updatedSrcSymbol) targetPort
+
+                getSymbolModel tl updatedTargetSymbol
+        
+        // list of all deleted wires
+        let removedWX = List.filter (fun wire -> Symbol.isSymbolSelected model.Symbol wire.SrcPort.HostId || Symbol.isSymbolSelected model.Symbol wire.TargetPort.HostId || wire.IsSelected) model.WX
+        
+        // reset symbols with variable port widths
+        let modifiedSymbol = getSymbolModel removedWX model.Symbol
+
+        let newSymbolModel, _ = Symbol.update (Symbol.Msg.DeleteSymbol) modifiedSymbol
         {model with WX = newWX; Symbol=newSymbolModel}, Cmd.none
 
     | MouseMsg mMsg -> 
@@ -449,11 +504,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
                                 match newSrcPort, newTargetPort with 
                                 | Some srcPort, Some targetPort -> 
-                                    // create new wire 
-                                    let wirePoints = getInitialWirePoints newSrcPos newTargetPos
-                                    let newWire = makeWireFromPorts (srcPort) (targetPort) wirePoints (srcPort.Width)
-                                    [{wire with IsSelected=false}; {newWire with IsSelected=true}]
-                                
+                                    // create new wire if possible
+                                    match srcPort.Width with 
+                                    | Some width ->
+                                        let wirePoints = getInitialWirePoints newSrcPos newTargetPos
+                                        let newWire = makeWireFromPorts (srcPort) (targetPort) wirePoints (width)
+                                        [{wire with IsSelected=false}; {newWire with IsSelected=true}]
+
+                                    | None -> [{wire with IsSelected=false}]
+
                                 | _ -> [wire]
                             )
 

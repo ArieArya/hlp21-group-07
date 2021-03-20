@@ -73,7 +73,7 @@ module CommonTypes
             PortType : PortType
             HostId : ComponentId
             Pos: XYPos
-            Width: int
+            Width: int option // must be option to deal with width inference
         } 
 
 

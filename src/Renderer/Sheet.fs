@@ -5,14 +5,57 @@ open Browser
 open Elmish
 open Elmish.React
 open Helpers
+open type CommonTypes.ComponentType
 
 //------------------------------------------------------------------------//
 //------------------------------Sheets Types------------------------------//
 //------------------------------------------------------------------------//
 
 type CompInfo = {
-    PortWidth: int
-    ConstValue: int
+    // --------------- This section is for the interface (replacing ISSIE) ------------
+    // for input and output
+    InputWidth: int
+    OutputWidth: int
+
+    // for bus selection component
+    BusSelectionOutWidth: int
+    BusSelectionLSB: int
+
+    // for constant
+    ConstantValue: int
+    ConstantWidth: int
+
+    // for AsyncROM
+    AsyncROMMemBits: int
+    AsyncROMOutWidth: int
+    
+    // for ROM
+    ROMMemBits: int
+    ROMOutWidth: int
+
+    // for RAM
+    RAMMemBits: int
+    RAMOutWidth: int
+
+    // for N-bits Adder
+    AdderBits: int
+
+    // for SplitWires
+    SplitOutWidth: int
+
+    // for Register
+    RegWidth: int
+
+    // for RegisterEnabled
+    RegEnabledWidth: int
+
+    // for IOLabel
+    IOLabelName: string
+
+    // for CustomComponent
+    CustComponentName: string
+    CustComponentInpPortsList: string
+    CustComponentOutPortsList: string
     }
 
 type DragBoxType = {
@@ -48,25 +91,57 @@ type Msg =
     | Wire of BusWire.Msg
     | KeyPress of KeyboardMsg
     | CreateSymbol of CommonTypes.ComponentType * float * float
-    | ChangeWireWidth of int
-    | ChangeConstValue of int
     | MouseMsg of MouseT
 
+    // This section is for handling user-defined parameters for Interface (replacing ISSIE)
+    // for input and output
+    | ChangeInputWidth of int
+    | ChangeOutputWidth of int
+
+    // for busSelection
+    | ChangeBusSelectionOutWidth of int
+    | ChangeBusSelectionLSB of int
+
+    // for constant
+    | ChangeConstantValue of int
+    | ChangeConstantWidth of int
+
+    // for AsyncROM
+    | ChangeAsyncROMMemBits of int
+    | ChangeAsyncROMOutWidth of int
+    
+    // for ROM
+    | ChangeROMMemBits of int
+    | ChangeROMOutWidth of int
+
+    // for RAM
+    | ChangeRAMMemBits of int
+    | ChangeRAMOutWidth of int
+
+    // for N-bits Adder
+    | ChangeAdderBits of int
+
+    // for SplitWires
+    | ChangeSplitOutWidth of int
+
+    // for Register
+    | ChangeRegWidth of int
+
+    // for RegisterEnabled
+    | ChangeRegEnabledWidth of int
+
+    // for IOLabel
+    | ChangeIOLabelName of string
+
+    // for CustomComponent
+    | ChangeCustComponentName of string
+    | ChangeCustComponentInpPortsList of string
+    | ChangeCustComponentOutPortsList of string
 
 
 //------------------------------------------------------------------------//
 //---------------------------Helper Functions-----------------------------//
 //------------------------------------------------------------------------//
-let defaultMemory : CommonTypes.Memory = {
-    AddressWidth = 0
-        // How wide each memory word should be, in bits.
-    WordWidth = 3
-        // Data is a list of <2^AddressWidth> elements, where each element is a
-        // 64 bit integer. This makes words longer than 64 bits not supported.
-        // This can be changed by using strings instead of int64, but that is way
-        // less memory efficient.
-    Data = Map.empty
-}
 
 // obtains the right-side menu to obtain user inputs (e.g. symbol type, name
 // of components, number of input and output ports, port width, etc.)
@@ -223,6 +298,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                 
             ]
 
+          // ----------------------- FOR DEMO INTERFACE (NO DRAW2DCANVAS IMPLEMENTATION HERE) ------------------------------
           // draws the right-side menu column (for demo purposes only - i.e. to input different symbols)
           div [ rightColumn ][
               
@@ -240,122 +316,8 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                 ]
                             ] [str "Module Selection"]
                       ] 
-
-                      // user input port width
-                      div [ Style [PaddingTop "5vh"]][
-                          input [
-                                    Type "number"
-                                    Placeholder "port width"
-                                    OnChange (fun ev -> dispatch (ChangeWireWidth (int ev.Value)))
-
-                                    Style [
-                                        Width "50%"
-                                        FontSize "1.5vh"
-                                        Height "3vh"
-                                    ]
-                                ]
-                      ]
-
-                      // user input const value
-                      div [ Style [PaddingTop "2.5vh"; PaddingBottom "3vh"]][
-                          input [   
-                                    Type "number"
-                                    Placeholder "constant comp value"
-                                    OnChange (fun ev -> dispatch (ChangeConstValue(int ev.Value)))
-
-                                    Style [
-                                        Width "50%"
-                                        FontSize "1.5vh"
-                                        Height "3vh"
-                                    ]
-                                ]
-                      ]
-                       
-                    // ------------------------ USED FOR USER-DEFINED INPUT / OUTPUT PORTS ------------------------
-                    //   // user input number of input ports
-                    //   div [ Style [PaddingTop "2.5vh"]][
-                    //       input [
-                    //                 Type "number"
-                    //                 Placeholder "number of input ports"
-                    //                 OnChange (fun ev -> dispatch (ChangeNumInputPorts (int ev.Value)))
-
-                    //                 Style [
-                    //                     Width "50%"
-                    //                     FontSize "1.5vh"
-                    //                     Height "3vh"
-                    //                 ]
-                    //             ]
-                    //   ]
-
-                    //   // user input number of output ports
-                    //   div [ Style [PaddingTop "2.5vh"]][
-                    //       input [   
-                    //                 Type "number"
-                    //                 Placeholder "number of output ports"
-                    //                 OnChange (fun ev -> dispatch (ChangeNumOutputPorts (int ev.Value)))
-
-                    //                 Style [
-                    //                     Width "50%"
-                    //                     FontSize "1.5vh"
-                    //                     Height "3vh"
-                    //                 ]
-                    //             ]
-                    //   ]
-                    // ------------------------------------------------------------------------------------------------
-
-                      div [ Style [Width "50%"; Float FloatOptions.Left]]  [
-                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
-                            a [
-                                Style [
-                                    Height "3vh"
-                                    TextAnchor "middle" 
-                                    DominantBaseline "middle" 
-                                    FontSize "1.6vh"
-                                    FontWeight "Bold"
-                                    Fill "Gray" 
-                                ]
-                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Input(model.ComponentInfo.PortWidth), 40., 50.)))
-                            ][str "Input"]
-                          ]                     
-                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
-                                a [
-                                    Style [
-                                        Height "3vh"
-                                        TextAnchor "middle" 
-                                        DominantBaseline "middle" 
-                                        FontSize "1.6vh"
-                                        FontWeight "Bold"
-                                        Fill "Gray" 
-                                    ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Output(model.ComponentInfo.PortWidth), 40., 50.)))
-                                ][str "Output"]
-                          ]                     
-                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
-                                a [
-                                    Style [
-                                        Height "5vh"
-                                        TextAnchor "middle" 
-                                        DominantBaseline "middle" 
-                                        FontSize "1.6vh"
-                                        FontWeight "Bold"
-                                        Fill "Gray" 
-                                    ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.BusSelection(model.ComponentInfo.PortWidth, 0), 40., 50.)))
-                                ][str "BusSelection"]
-                          ]                     
-                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
-                                a [
-                                    Style [
-                                        Height "3vh"
-                                        TextAnchor "middle" 
-                                        DominantBaseline "middle" 
-                                        FontSize "1.6vh"
-                                        FontWeight "Bold"
-                                        Fill "Gray" 
-                                    ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Constant(model.ComponentInfo.PortWidth, model.ComponentInfo.ConstValue), 40., 50.)))
-                                ][str "Constant"]
-                          ]
+                      div [ Style [Width "25%"; Float FloatOptions.Left]]  [
+                          // Not           
                           div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
                                 a [
                                     Style [
@@ -368,7 +330,8 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                     ]
                                     OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Not, 40., 50.)))
                                 ][str "Not"]
-                          ]  
+                          ]    
+                          // Or
                           div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
                                 a [
                                     Style [
@@ -379,9 +342,10 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Or, 60., 50.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Or, 60., 70.)))
                                 ][str "Or"]
                           ]
+                          // And
                           div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
                                 a [
                                     Style [
@@ -392,9 +356,13 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.And, 60., 50.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.And, 60., 70.)))
                                 ][str "And"]
-                          ]
+                          ] 
+                      ]
+
+                      div [ Style [Width "25%"; Float FloatOptions.Left]]  [
+                          // Nor
                           div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
                                 a [
                                     Style [
@@ -405,9 +373,11 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Nor, 60., 50.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Nor, 60., 70.)))
                                 ][str "Nor"]
                           ]
+
+                          // Xor
                           div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
                             a [
                                 Style [
@@ -418,9 +388,11 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                     FontWeight "Bold"
                                     Fill "Gray" // font color
                                 ]
-                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Xor, 60., 50.)))
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Xor, 60., 70.)))
                             ][str "Xor"]
                           ]
+
+                          // Nand
                           div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
                                 a [
                                     Style [
@@ -431,38 +403,13 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Nand, 60., 50.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Nand, 60., 70.)))
                                 ][str "Nand"]
                             ]
-                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
-                                a [
-                                    Style [
-                                        Height "3vh"
-                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
-                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                        FontSize "1.6vh"
-                                        FontWeight "Bold"
-                                        Fill "Gray" // font color
-                                    ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Xnor, 60., 50.)))
-                                ][str "Xnor"]
-                           ]
-                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
-                                a [
-                                    Style [
-                                        Height "3vh"
-                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
-                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                        FontSize "1.6vh"
-                                        FontWeight "Bold"
-                                        Fill "Gray" // font color
-                                    ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Decode4, 200., 80.)))
-                                ][str "Decode4"]
-                           ]
                       ]
 
-                      div [ Style [Width "50%"; Float FloatOptions.Left]]  [
+                      div [ Style [Width "25%"; Float FloatOptions.Left]]  [
+                          // Xnor
                           div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
                                 a [
                                     Style [
@@ -473,9 +420,43 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Mux2, 60., 50.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Xnor, 60., 70.)))
+                                ][str "Xnor"]
+                           ]
+
+                           // Decode4
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Decode4, 170., 100.)))
+                                ][str "Decode4"]
+                           ]
+
+                          // Mux2
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Mux2, 70., 50.)))
                                 ][str "Mux2"]
                             ]
+                      ]
+
+                      div [ Style [Width "25%"; Float FloatOptions.Left]]  [
+                          // Demux2
                           div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
                                 a [
                                     Style [
@@ -486,48 +467,10 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Demux2, 60., 50.)))
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Demux2, 70., 50.)))
                                 ][str "Demux2"]
-                          ]         
-                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
-                                a [
-                                    Style [
-                                        Height "3vh"
-                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
-                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                        FontSize "1.6vh"
-                                        FontWeight "Bold"
-                                        Fill "Gray" // font color
-                                    ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.NbitsAdder(model.ComponentInfo.PortWidth), 150., 100.)))
-                                ][str "NbitsAdder"]
-                            ]
-                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
-                                a [
-                                    Style [
-                                        Height "3vh"
-                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
-                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                        FontSize "1.6vh"
-                                        FontWeight "Bold"
-                                        Fill "Gray" // font color
-                                    ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.MergeWires, 60., 70.)))
-                                ][str "MergeWires"]
-                            ]                          
-                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
-                                a [
-                                    Style [
-                                        Height "3vh"
-                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
-                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                        FontSize "1.6vh"
-                                        FontWeight "Bold"
-                                        Fill "Gray" // font color
-                                    ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.SplitWire(model.ComponentInfo.PortWidth), 60., 70.)))
-                                ][str "SplitWire"]
-                            ]  
+                          ]  
+                          // DFF
                           div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
                                 a [
                                     Style [
@@ -541,6 +484,8 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                     OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.DFF, 60., 50.)))
                                 ][str "DFF"]
                             ] 
+                          
+                           // DFFE
                           div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
                                 a [
                                     Style [
@@ -553,33 +498,169 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                     ]
                                     OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.DFFE, 100., 80.)))
                                 ][str "DFFE"]
-                            ] 
+                            ]        
+                      ]
+
+                      div [ Style [Width "50%"; Float FloatOptions.Left]]  [
+                          // Input
                           div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
-                                a [
-                                    Style [
-                                        Height "3vh"
-                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
-                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                        FontSize "1.6vh"
-                                        FontWeight "Bold"
-                                        Fill "Gray" // font color
+                            a [
+                                Style [
+                                    Height "3vh"
+                                    TextAnchor "middle" 
+                                    DominantBaseline "middle" 
+                                    FontSize "1.6vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" 
+                                ]
+                                OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Input(model.ComponentInfo.InputWidth), 30., 60.)))
+                            ][str "Input"]
+                          ] 
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "number"
+                                     Placeholder "width"
+                                     OnChange (fun ev -> 
+                                                if (int ev.Value < 1) then dispatch (ChangeInputWidth(1))
+                                                else dispatch (ChangeInputWidth(int ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Register(model.ComponentInfo.PortWidth), 100., 120.)))
-                                ][str "Register"]
-                            ] 
-                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
-                                a [
-                                    Style [
-                                        Height "3vh"
-                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
-                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                        FontSize "1.6vh"
-                                        FontWeight "Bold"
-                                        Fill "Gray" // font color
-                                    ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.RegisterE(model.ComponentInfo.PortWidth), 100., 120.)))
-                                ][str "RegisterE"]
+                                 ]
                             ]  
+
+
+                          // Output
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" 
+                                        DominantBaseline "middle" 
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" 
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Output(model.ComponentInfo.OutputWidth), 30., 60.)))
+                                ][str "Output"]
+                          ]     
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "number"
+                                     Placeholder "width"
+                                     OnChange (fun ev -> 
+                                                if (int ev.Value < 1) then dispatch (ChangeOutputWidth(1))
+                                                else dispatch (ChangeOutputWidth(int ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]    
+
+
+                          // Bus Selection
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "5vh"
+                                        TextAnchor "middle" 
+                                        DominantBaseline "middle" 
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" 
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.BusSelection(model.ComponentInfo.BusSelectionOutWidth, model.ComponentInfo.BusSelectionLSB), 30., 60.)))
+                                ][str "BusSelection"]
+                          ] 
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "number"
+                                     Placeholder "output width"
+                                     OnChange (fun ev -> 
+                                                if (int ev.Value < 1) then dispatch (ChangeBusSelectionOutWidth(1))
+                                                else dispatch (ChangeBusSelectionOutWidth(int ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]   
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "number"
+                                     Placeholder "LS output bit"
+                                     OnChange (fun ev -> 
+                                                if (int ev.Value < 1) then dispatch (ChangeBusSelectionLSB(1))
+                                                else dispatch (ChangeBusSelectionLSB(int ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]   
+
+
+                          // Constant
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" 
+                                        DominantBaseline "middle" 
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" 
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Constant(model.ComponentInfo.ConstantWidth, model.ComponentInfo.ConstantValue), 20., 50.)))
+                                ][str "Constant"]
+                          ]
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "number"
+                                     Placeholder "value"
+                                     OnChange (fun ev -> dispatch (ChangeConstantValue(int ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]  
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "number"
+                                     Placeholder "width"
+                                     OnChange (fun ev -> 
+                                                if (int ev.Value < 1) then dispatch (ChangeConstantWidth(1))
+                                                else dispatch (ChangeConstantWidth(int ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]  
+
+
+                          // AsyncROM
                           div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
                                 a [
                                     Style [
@@ -590,9 +671,49 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.AsyncROM(defaultMemory), 150., 100.)))
+                                    OnClick (fun _ -> 
+                                            let curMemory : CommonTypes.Memory = {
+                                                AddressWidth = model.ComponentInfo.AsyncROMMemBits
+                                                WordWidth = model.ComponentInfo.AsyncROMOutWidth
+                                                Data = Map.empty
+                                            }
+                                            dispatch (CreateSymbol (CommonTypes.ComponentType.AsyncROM(curMemory), 150., 100.)))
                                 ][str "AsyncROM"]
                             ] 
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "number"
+                                     Placeholder "mem addr bits"
+                                     OnChange (fun ev -> 
+                                                if (int ev.Value < 1) then dispatch (ChangeAsyncROMMemBits(1))
+                                                else dispatch (ChangeAsyncROMMemBits(int ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]  
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "number"
+                                     Placeholder "mem word size"
+                                     OnChange (fun ev -> 
+                                                if (int ev.Value < 1) then dispatch (ChangeAsyncROMOutWidth(1))
+                                                else dispatch (ChangeAsyncROMOutWidth(int ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]  
+
+                          // ROM
                           div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
                                 a [
                                     Style [
@@ -603,9 +724,49 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.ROM(defaultMemory), 150., 100.)))
+                                    OnClick (fun _ -> 
+                                            let curMemory : CommonTypes.Memory = {
+                                                AddressWidth = model.ComponentInfo.ROMMemBits
+                                                WordWidth = model.ComponentInfo.ROMOutWidth
+                                                Data = Map.empty
+                                            }
+                                            dispatch (CreateSymbol (CommonTypes.ComponentType.ROM(curMemory), 150., 100.)))
                                 ][str "ROM"]
                             ] 
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "number"
+                                     Placeholder "mem addr bits"
+                                     OnChange (fun ev -> 
+                                                if (int ev.Value < 1) then dispatch (ChangeROMMemBits(1))
+                                                else dispatch (ChangeROMMemBits(int ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]  
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "number"
+                                     Placeholder "mem word size"
+                                     OnChange (fun ev -> 
+                                                if (int ev.Value < 1) then dispatch (ChangeROMOutWidth(1))
+                                                else dispatch (ChangeROMOutWidth(int ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]
+
+                          // RAM
                           div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
                                 a [
                                     Style [
@@ -616,13 +777,340 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                         FontWeight "Bold"
                                         Fill "Gray" // font color
                                     ]
-                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.RAM(defaultMemory), 150., 160.)))
+                                    OnClick (fun _ -> 
+                                            let curMemory : CommonTypes.Memory = {
+                                                AddressWidth = model.ComponentInfo.RAMMemBits
+                                                WordWidth = model.ComponentInfo.RAMOutWidth
+                                                Data = Map.empty
+                                            }
+                                            dispatch (CreateSymbol (CommonTypes.ComponentType.RAM(curMemory), 150., 160.)))
                                 ][str "RAM"]
                             ] 
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "number"
+                                     Placeholder "mem addr bits"
+                                     OnChange (fun ev -> 
+                                                if (int ev.Value < 1) then dispatch (ChangeRAMMemBits(1))
+                                                else dispatch (ChangeRAMMemBits(int ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]  
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "number"
+                                     Placeholder "mem word size"
+                                     OnChange (fun ev -> 
+                                                if (int ev.Value < 1) then dispatch (ChangeRAMOutWidth(1))
+                                                else dispatch (ChangeRAMOutWidth(int ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]
+                          
                       ]
+                       
                       
+                      div [ Style [Width "50%"; Float FloatOptions.Left]]  [
+                          // N-Bit Adder
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.NbitsAdder(model.ComponentInfo.AdderBits), 150., 100.)))
+                                ][str "NbitsAdder"]
+                            ]
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "number"
+                                     Placeholder "operand bits"
+                                     OnChange (fun ev -> 
+                                                if (int ev.Value < 1) then dispatch (ChangeAdderBits(1))
+                                                else dispatch (ChangeAdderBits(int ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]
+
+
+                          // Merge Wires
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.MergeWires, 80., 80.)))
+                                ][str "MergeWires"]
+                            ]           
+
+                          // Split Wire
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.SplitWire(model.ComponentInfo.SplitOutWidth), 80., 80.)))
+                                ][str "SplitWire"]
+                            ]  
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "number"
+                                     Placeholder "top LSB bits"
+                                     OnChange (fun ev -> 
+                                                if (int ev.Value < 1) then dispatch (ChangeSplitOutWidth(1))
+                                                else dispatch (ChangeSplitOutWidth(int ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]
+
+
+                          // Register
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.Register(model.ComponentInfo.RegWidth), 100., 120.)))
+                                ][str "Register"]
+                            ] 
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "number"
+                                     Placeholder "width"
+                                     OnChange (fun ev -> 
+                                                if (int ev.Value < 1) then dispatch (ChangeRegWidth(1))
+                                                else dispatch (ChangeRegWidth(int ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]
+
+                          // Register with Enable
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.RegisterE(model.ComponentInfo.RegEnabledWidth), 100., 120.)))
+                                ][str "RegisterE"]
+                            ] 
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "number"
+                                     Placeholder "width"
+                                     OnChange (fun ev -> 
+                                                if (int ev.Value < 1) then dispatch (ChangeRegEnabledWidth(1))
+                                                else dispatch (ChangeRegEnabledWidth(int ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]
+
+                          // IOLabel
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> dispatch (CreateSymbol (CommonTypes.ComponentType.IOLabel, 100., 80.)))
+                                ][str "IOLabel"]
+                            ] 
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "text"
+                                     Placeholder "name "
+                                     OnChange (fun ev -> dispatch (ChangeIOLabelName(ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]
+
+                          // Custom Component
+                          div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                                a [
+                                    Style [
+                                        Height "3vh"
+                                        TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                        DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                        FontSize "1.6vh"
+                                        FontWeight "Bold"
+                                        Fill "Gray" // font color
+                                    ]
+                                    OnClick (fun _ -> 
+                                            // reads custom component string and convert to list
+                                            let parseStringToList (inpString: string) : (string * int) list = 
+                                                let rec getParsedList (stringArray: char list) (readLabel: bool) (readNumber: bool) (label: string) (width: string) = 
+                                                    match stringArray with 
+                                                    // stop condition 
+                                                    | [] -> []
+                                                    | (hd::_) when hd = ']' -> []
+
+                                                    // start reading label name
+                                                    | (hd::tl) when hd = '(' -> getParsedList (tl) (true) (false) ("") (width) 
+
+                                                    // stop reading label name & start reading number
+                                                    | (hd::tl) when hd = ',' -> getParsedList (tl) (false) (true) (label) (width)
+
+                                                    // stop reading number & finish reading tuple
+                                                    | (hd::tl) when hd = ')' -> (label, int width)::(getParsedList (tl) (false) (false) ("") (""))
+
+                                                    // read label name 
+                                                    | (hd::tl) when readLabel -> getParsedList (tl) (true) (false) (label + string hd) (width)
+
+                                                    // read number 
+                                                    | (hd::tl) when readNumber-> getParsedList (tl) (false) (true) (label) (width + string hd)
+
+                                                    // ignore other characters
+                                                    | (_::tl) -> getParsedList (tl) (readLabel) (readNumber) (label) (width)
+
+                                                let stringList = Seq.toList inpString
+                                                getParsedList (stringList) (false) (false) ("") ("")
+
+
+                                            let custComp : CommonTypes.CustomComponentType = {
+                                                Name = model.ComponentInfo.CustComponentName
+                                                // List of tuples with (label * connection width).
+     
+                                                InputLabels = parseStringToList model.ComponentInfo.CustComponentInpPortsList
+                                                OutputLabels = parseStringToList model.ComponentInfo.CustComponentOutPortsList
+                                            }
+
+                                            let height = 
+                                                match custComp.InputLabels.Length >= custComp.OutputLabels.Length with 
+                                                | true -> (float custComp.InputLabels.Length) * 40.
+                                                | false -> (float custComp.OutputLabels.Length) * 40.
+
+                                            dispatch (CreateSymbol (CommonTypes.ComponentType.Custom(custComp), 140., height)))
+
+                                ][str "Custom Component"]
+                            ]   
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "text"
+                                     Placeholder "name"
+                                     OnChange (fun ev -> dispatch (ChangeCustComponentName(ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "text"
+                                     Placeholder "inp {(string*int) list}"
+                                     OnChange (fun ev -> dispatch (ChangeCustComponentInpPortsList(ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]
+                          div [ Style [PaddingTop "0.5vh"]][
+                            input [   
+                                     Type "text"
+                                     Placeholder "out {(string*int) list}"
+                                     OnChange (fun ev -> dispatch (ChangeCustComponentOutPortsList(ev.Value)))
+
+                                     Style [
+                                         Width "50%"
+                                         FontSize "1.2vh"
+                                         Height "2.3vh"
+                                         TextAlign TextAlignOptions.Center
+                                    ]
+                                 ]
+                            ]
+                          div [ Style [PaddingTop "0.5vh"]][
+                            text [ 
+                                Style [
+                                    TextAnchor "middle" 
+                                    DominantBaseline "middle" 
+                                    FontSize "1.2vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" 
+                                ]
+                            ] [str "Example: [(port1, 2); (port2, 3)]"]
+                          ]
+
+                      ]
+  
                   ]
             ]
+            // ------------------------------ END OF DEMO INTERFACE --------------------------------------
         ]
         
 
@@ -651,11 +1139,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         // finds position to insert new symbol (i.e. ensuring no collision with existing symbols)
         let pos = Symbol.findNextAvailablePos (model.Wire.Symbol) (width, height)
 
-        // user-defined port width
-        let portWidth = model.ComponentInfo.PortWidth
+        let compName = 
+            match compType with 
+            | IOLabel -> model.ComponentInfo.IOLabelName
+            | Custom _ -> model.ComponentInfo.CustComponentName
+            | _ -> ""
 
         // return updated model
-        let newModel, newCmd = Symbol.update (Symbol.Msg.AddSymbol (compType, portWidth, pos)) model.Wire.Symbol
+        let newModel, newCmd = Symbol.update (Symbol.Msg.AddSymbol (compType, pos, compName)) model.Wire.Symbol
         {model with Wire = {model.Wire with Symbol = newModel}}, newCmd
 
     // deletes symbol
@@ -676,27 +1167,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         
         | _ ->
             model, Cmd.none
-        
-
-    // change the port width to user-defined port width
-    | ChangeWireWidth portWidth ->
-        {model with ComponentInfo = {model.ComponentInfo with PortWidth = portWidth}}, Cmd.none
-
-    // change component label to user-defined component label
-    | ChangeConstValue value ->
-        {model with ComponentInfo = {model.ComponentInfo with ConstValue = value}}, Cmd.none
-
-
-    // ------------------------------ FOR USER-DEFINED INPUT / OUTPUT PORTS -----------------------------------
-    // // change number of input ports to user-defined number of input ports
-    // | ChangeNumInputPorts numInputPorts ->
-    //     {model with ComponentInfo = {model.ComponentInfo with NumInputPorts = numInputPorts}}, Cmd.none
-
-    // // change number of output ports to user-defined number of output ports
-    // | ChangeNumOutputPorts numOutputPorts ->
-    //     {model with ComponentInfo = {model.ComponentInfo with NumOutputPorts = numOutputPorts}}, Cmd.none
-    // ---------------------------------------------------------------------------------------------------------
-
 
     // handles mouse operations
     | MouseMsg mMsg ->
@@ -806,7 +1276,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
                 // otherwise, deselect all symbols
                 | false -> fst (Symbol.update (Symbol.Msg.BoxSelected (model.DragBox.Edge1, model.DragBox.Edge2)) model.Wire.Symbol)
-                |> List.map (fun sym -> {sym with ExpandedPort = None})
+                |> List.map (fun sym -> {sym with ExpandedPort = (None, None)})
 
             let updatedWire, _ = BusWire.update (BusWire.Msg.SelectWiresFromSymbol) {model.Wire with Symbol=newSymbol}
 
@@ -912,6 +1382,73 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             // return updated model
             {model with Wire={model.Wire with WX=newWX; Symbol=newSymbol}; DragBox=resetDragBox; DragWire=resetDragWire}, Cmd.none
 
+    // ------------------------- This section performs parameter update based on user inputs ----------------------
+    // for Input and Output
+    | ChangeInputWidth width ->
+        {model with ComponentInfo = {model.ComponentInfo with InputWidth = width}}, Cmd.none
+    | ChangeOutputWidth width ->
+        {model with ComponentInfo = {model.ComponentInfo with OutputWidth = width}}, Cmd.none
+
+    // for BusSelection
+    | ChangeBusSelectionOutWidth outWidth ->
+        {model with ComponentInfo = {model.ComponentInfo with BusSelectionOutWidth = outWidth}}, Cmd.none
+    | ChangeBusSelectionLSB lsb ->
+        {model with ComponentInfo = {model.ComponentInfo with BusSelectionLSB = lsb}}, Cmd.none
+
+    // for constant
+    | ChangeConstantValue value ->
+        {model with ComponentInfo = {model.ComponentInfo with ConstantValue = value}}, Cmd.none
+    | ChangeConstantWidth width ->
+        {model with ComponentInfo = {model.ComponentInfo with ConstantWidth = width}}, Cmd.none
+
+    // for AsyncROM
+    | ChangeAsyncROMMemBits memAddrBits ->
+        {model with ComponentInfo = {model.ComponentInfo with AsyncROMMemBits = memAddrBits}}, Cmd.none
+    | ChangeAsyncROMOutWidth outWidth ->
+        {model with ComponentInfo = {model.ComponentInfo with AsyncROMOutWidth = outWidth}}, Cmd.none
+    
+    // for ROM
+    | ChangeROMMemBits memAddrBits ->
+        {model with ComponentInfo = {model.ComponentInfo with ROMMemBits = memAddrBits}}, Cmd.none
+    | ChangeROMOutWidth outWidth ->
+        {model with ComponentInfo = {model.ComponentInfo with ROMOutWidth = outWidth}}, Cmd.none
+
+    // for RAM
+    | ChangeRAMMemBits memAddrBits ->
+        {model with ComponentInfo = {model.ComponentInfo with RAMMemBits = memAddrBits}}, Cmd.none
+    | ChangeRAMOutWidth outWidth ->
+        {model with ComponentInfo = {model.ComponentInfo with RAMOutWidth = outWidth}}, Cmd.none
+
+    // for N-bits Adder
+    | ChangeAdderBits addBitSize ->
+        {model with ComponentInfo = {model.ComponentInfo with AdderBits = addBitSize}}, Cmd.none
+
+    // for SplitWires
+    | ChangeSplitOutWidth outWidth ->
+        {model with ComponentInfo = {model.ComponentInfo with SplitOutWidth = outWidth}}, Cmd.none
+
+    // for Register
+    | ChangeRegWidth width ->
+        {model with ComponentInfo = {model.ComponentInfo with RegWidth = width}}, Cmd.none
+
+    // for RegisterEnabled
+    | ChangeRegEnabledWidth width ->
+        {model with ComponentInfo = {model.ComponentInfo with RegEnabledWidth = width}}, Cmd.none
+
+    // for IOLabel
+    | ChangeIOLabelName labelName ->
+        {model with ComponentInfo = {model.ComponentInfo with IOLabelName = labelName}}, Cmd.none
+
+    // for CustomComponent
+    | ChangeCustComponentName compName ->
+        {model with ComponentInfo = {model.ComponentInfo with CustComponentName = compName}}, Cmd.none
+    | ChangeCustComponentInpPortsList inpPortsStr ->
+        {model with ComponentInfo = {model.ComponentInfo with CustComponentInpPortsList = inpPortsStr}}, Cmd.none
+    | ChangeCustComponentOutPortsList outPortsStr ->
+        {model with ComponentInfo = {model.ComponentInfo with CustComponentOutPortsList = outPortsStr}}, Cmd.none
+
+
+
 /// Initialization
 let init() = 
     let model,cmds = (BusWire.init 1)()
@@ -920,7 +1457,12 @@ let init() =
 
     {
         Wire = model
-        ComponentInfo = {PortWidth = 1; ConstValue = 1}
+        // initialize user-defined values
+        ComponentInfo = {InputWidth = 1; OutputWidth = 1; BusSelectionOutWidth = 2; BusSelectionLSB = 0; ConstantValue = 1; ConstantWidth = 1;
+                        AsyncROMMemBits = 1; AsyncROMOutWidth = 1; ROMMemBits = 1; ROMOutWidth = 1; RAMMemBits = 1; RAMOutWidth = 1;
+                        AdderBits = 1; SplitOutWidth = 1; RegWidth = 1; 
+                        RegEnabledWidth = 1; IOLabelName = "wireLabel"; CustComponentName = "CustomName"; CustComponentInpPortsList = "[(in1, 1); (in2, 1)]";
+                        CustComponentOutPortsList = "[(out1, 1); (out2, 1)]"}
         DragBox=dragBoxInit
         DragWire=dragWireInit
 

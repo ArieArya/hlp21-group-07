@@ -24,7 +24,7 @@ type Symbol =
         Label: string
         InputPorts: CommonTypes.Port list
         OutputPorts: CommonTypes.Port list
-        ExpandedPort: CommonTypes.PortType option
+        ExpandedPort: (CommonTypes.PortType option * int option)
         Vertices: XYPos list
         H: int
         W: int
@@ -49,12 +49,12 @@ type Msg =
     | StartDragging of sId : CommonTypes.ComponentId * pagePos: XYPos
     | Dragging of sId : CommonTypes.ComponentId * pagePos: XYPos
     | EndDragging of sId : CommonTypes.ComponentId
-    | AddSymbol of CommonTypes.ComponentType * busWidth: int * XYPos
+    | AddSymbol of CommonTypes.ComponentType * XYPos * string
     | DeleteSymbol 
     | UpdateSymbolModelWithComponent of CommonTypes.Component 
     | BoxSelected of XYPos * XYPos
     | SymbolHovering of XYPos
-    | ExpandPort of CommonTypes.PortType * int
+    | ExpandPort of CommonTypes.PortType * int option
     | CopySymbols
     | PasteSymbols of XYPos
 
@@ -159,7 +159,23 @@ let getNextLabel (symModel: Model) (compType: CommonTypes.ComponentType) : strin
     // obtain list of symbols with the same component type
     let sameCompList = 
         symModel 
-        |> List.filter (fun sym -> sym.Type = compType)
+        |> List.filter (fun sym ->
+                            match sym.Type, compType with
+                            | Input _, Input _ -> true
+                            | Output _, Output _ -> true
+                            | BusSelection _, BusSelection _ -> true
+                            | Constant _, Constant _ -> true
+                            | NbitsAdder _, NbitsAdder _ -> true
+                            | Register _, Register _ -> true
+                            | RegisterE _, RegisterE _ -> true
+                            | AsyncROM _, AsyncROM _ -> true
+                            | ROM _, ROM _ -> true
+                            | RAM _, RAM _ -> true
+                            | SplitWire _, SplitWire _ -> true
+                            | Custom _, Custom _ -> true
+                            | _ ->
+                                sym.Type = compType
+                            )
 
     // obtain number of occurence of the component
     let compOccurence = sameCompList.Length + 1
@@ -190,14 +206,14 @@ let getNextLabel (symModel: Model) (compType: CommonTypes.ComponentType) : strin
     | AsyncROM mem -> "Async-ROM" + (string compOccurence)
     | ROM mem -> "Sync-ROM" + (string compOccurence)
     | RAM mem -> "RAM" + (string compOccurence)
-    |_ -> failwith "Invalid Component Type"
+    | Custom custCompType -> "CUST" + (string compOccurence)
 
 //------------------------------------------------------------------------//
 //---------------------Skeleton Message type for symbols------------------//
 //------------------------------------------------------------------------//
 
 /// Creates New Input Port
-let createNewInputPort (portNumber: int) (pos: XYPos) (hostId: CommonTypes.ComponentId) (portWidth: int) : CommonTypes.Port = 
+let createNewInputPort (portNumber: int) (pos: XYPos) (hostId: CommonTypes.ComponentId) (portWidth: int option) : CommonTypes.Port = 
     {
         Id = (Helpers.uuid()) 
         PortType = CommonTypes.PortType.Input
@@ -208,7 +224,7 @@ let createNewInputPort (portNumber: int) (pos: XYPos) (hostId: CommonTypes.Compo
     }
 
 /// Creates New Output Port
-let createNewOutputPort (portNumber: int) (pos: XYPos) (hostId: CommonTypes.ComponentId) (portWidth: int) : CommonTypes.Port = 
+let createNewOutputPort (portNumber: int) (pos: XYPos) (hostId: CommonTypes.ComponentId) (portWidth: int option) : CommonTypes.Port = 
     {
         Id = (Helpers.uuid()) 
         PortType = CommonTypes.PortType.Output
@@ -222,7 +238,7 @@ let createNewOutputPort (portNumber: int) (pos: XYPos) (hostId: CommonTypes.Comp
 let newPortTemplate 
     (inOrOut: CommonTypes.PortType) 
     (hostId: CommonTypes.ComponentId) 
-    (portNumber: int) (busWidth: int) 
+    (portNumber: int) (busWidth: int option) 
     (pos: XYPos) (h:int) (w:int)
     (numberOfPorts: int): CommonTypes.Port=
     {
@@ -239,10 +255,19 @@ let newPortTemplate
 /// Template for new Symbols
 let newSymbolTemplate 
     (compType: CommonTypes.ComponentType) (pos:XYPos) 
-    (h: int) (w: int) (numberOfInputs: int) 
-    (numberOfOutputs: int) (busWidth: int) (model: Model): Symbol =
+    (h: int) (w: int) (inputPortWidthList: (int option) list) (outputPortWidthList: (int option) list) (compName: string) (model: Model): Symbol =
     let id = 
         CommonTypes.ComponentId (Helpers.uuid())
+    
+    let numberOfInputs = inputPortWidthList.Length
+    let numberOfOutputs = outputPortWidthList.Length
+
+    let compLabel = 
+        match compType with 
+        | IOLabel -> compName
+        | BusSelection (outWidth, outLSBit) -> (sprintf "(%d:%d)" ((outWidth - 1) + outLSBit) (outLSBit))
+        | _ -> getNextLabel model compType
+
     {
         Pos = pos
         LastDragPos = {X=0. ; Y=0.} // initial value can always be this
@@ -252,67 +277,86 @@ let newSymbolTemplate
         IsCopied = false
         Id = id // create a unique id for this symbol
         Type = compType
-        Label = getNextLabel model compType
+        Label = compLabel
         InputPorts = 
-            [0..(numberOfInputs-1)]
+            [0..(inputPortWidthList.Length-1)]
             |> List.map (fun x -> 
                 (newPortTemplate 
                     CommonTypes.PortType.Input 
                     id
-                    x busWidth pos h w numberOfInputs))
+                    x inputPortWidthList.[x] pos h w numberOfInputs))
         OutputPorts = 
-            [0..(numberOfOutputs-1)]
+            [0..(outputPortWidthList.Length-1)]
             |> List.map (fun x -> 
                 (newPortTemplate 
                     CommonTypes.PortType.Output 
                     id
-                    x busWidth pos h w numberOfOutputs))
-        ExpandedPort = None
+                    x outputPortWidthList.[x] pos h w numberOfOutputs))
+        ExpandedPort = (None, None)
         Vertices = calcVertices pos h w
         H = h
         W = w
     }
 
 /// Creates New Symbol
-let createNewSymbol (comptype: CommonTypes.ComponentType) (busWidth: int) (pos: XYPos) (model: Model) (extraComps: Symbol List): Symbol =
+let createNewSymbol (comptype: CommonTypes.ComponentType) (compName: string) (pos: XYPos) (model: Model) (extraComps: Symbol List): Symbol =
     match comptype with 
-    | Input busWidthx | Output busWidthx -> 
-        newSymbolTemplate comptype pos 30 60 1 1 busWidth (model @ extraComps)
+    | Input busWidthx ->
+        newSymbolTemplate comptype pos 30 60 [Some 1] [Some busWidthx] (compName) (model @ extraComps)
+    | Output busWidthx -> 
+        newSymbolTemplate comptype pos 30 60 [Some busWidthx] [Some 1] (compName)(model @ extraComps)
     | BusSelection (outWidth, outLSBit) ->
-        newSymbolTemplate comptype pos 30 60 1 1 busWidth (model @ extraComps)
+        newSymbolTemplate comptype pos 30 60 [None] [Some outWidth] (compName) (model @ extraComps)
     | Constant (busWidthx, value) -> 
-        newSymbolTemplate comptype pos 20 50 1 1 busWidth (model @ extraComps)
-    | IOLabel | Not ->
-        newSymbolTemplate comptype pos 40 50 1 1 busWidth (model @ extraComps)
+        newSymbolTemplate comptype pos 20 50 [Some 1] [Some busWidthx] (compName) (model @ extraComps)
+    | IOLabel ->
+        newSymbolTemplate comptype pos 40 50 [None] [None] (compName) (model @ extraComps)
+    | Not ->
+        newSymbolTemplate comptype pos 40 50 [Some 1] [Some 1] (compName) (model @ extraComps)
     | And | Or | Xor | Nand | Nor | Xnor ->
-        newSymbolTemplate comptype pos 60 70 2 1 busWidth (model @ extraComps)
+        newSymbolTemplate comptype pos 60 70 [Some 1; Some 1] [Some 1] (compName) (model @ extraComps)
     | Decode4 ->
-        newSymbolTemplate comptype pos 170 100 2 4 busWidth (model @ extraComps)
+        newSymbolTemplate comptype pos 170 100 [Some 1; Some 1] [Some 1; Some 1; Some 1; Some 1] (compName) (model @ extraComps)
     | Mux2 -> 
-        newSymbolTemplate comptype pos 70 50 2 1 busWidth (model @ extraComps)
+        newSymbolTemplate comptype pos 70 50 [Some 1; Some 1] [Some 1] (compName) (model @ extraComps)
     | Demux2 ->
-        newSymbolTemplate comptype pos 70 50 1 2 busWidth (model @ extraComps)
+        newSymbolTemplate comptype pos 70 50 [Some 1] [Some 1; Some 1] (compName) (model @ extraComps)
     | NbitsAdder busWidthx -> 
-        newSymbolTemplate comptype pos 150 100 3 2 busWidth (model @ extraComps)
+        newSymbolTemplate comptype pos 150 100 [Some 1; Some busWidthx; Some busWidthx] [Some 1; Some 1] (compName) (model @ extraComps)
     | MergeWires -> 
-        newSymbolTemplate comptype pos 80 80 2 1 busWidth (model @ extraComps)
+        newSymbolTemplate comptype pos 80 80 [None; None] [None] (compName) (model @ extraComps)
     | SplitWire busWidthx ->
-        newSymbolTemplate comptype pos 80 80 1 2 busWidth (model @ extraComps)
+        newSymbolTemplate comptype pos 80 80 [None] [Some busWidthx; None] (compName) (model @ extraComps)
     | DFF ->
-        newSymbolTemplate comptype pos 60 50 2 1 busWidth (model @ extraComps)
+        newSymbolTemplate comptype pos 60 50 [Some 1; Some 1] [Some 1] (compName) (model @ extraComps)
     | DFFE -> 
-        newSymbolTemplate comptype pos 100 80 3 1 busWidth (model @ extraComps)
+        newSymbolTemplate comptype pos 100 80 [Some 1; Some 1; Some 1] [Some 1] (compName) (model @ extraComps)
     | Register busWidthx ->
-        newSymbolTemplate comptype pos 100 120 2 1 busWidth (model @ extraComps)
+        newSymbolTemplate comptype pos 100 120 [Some busWidthx] [Some busWidthx] (compName) (model @ extraComps)
     | RegisterE busWidthx -> 
-        newSymbolTemplate comptype pos 100 120 3 1 busWidth (model @ extraComps)
+        newSymbolTemplate comptype pos 100 120 [Some busWidthx] [Some busWidthx] (compName) (model @ extraComps)
     | AsyncROM mem ->
-        newSymbolTemplate comptype pos 150 100 1 1 busWidth (model @ extraComps)
+        newSymbolTemplate comptype pos 150 100 [Some mem.AddressWidth] [Some mem.WordWidth] (compName) (model @ extraComps)
     | ROM mem ->
-        newSymbolTemplate comptype pos 150 100 2 1 busWidth (model @ extraComps)
+        newSymbolTemplate comptype pos 150 100 [Some mem.AddressWidth; Some 1] [Some mem.WordWidth] (compName) (model @ extraComps)
     | RAM mem ->
-        newSymbolTemplate comptype pos 150 160 4 1 busWidth (model @ extraComps)
-    |_ -> failwith "Invalid Component Type"    
+        newSymbolTemplate comptype pos 150 160 [Some mem.AddressWidth; Some mem.WordWidth; Some 1; Some 1] [Some mem.WordWidth] (compName) (model @ extraComps)
+    | Custom custCompType ->
+        let inpPortWidths = 
+            custCompType.InputLabels
+            |> List.map (fun x -> Some (snd x))
+        
+        let outPortWidths = 
+            custCompType.OutputLabels
+            |> List.map (fun x -> Some (snd x))
+
+        let height = 
+            match custCompType.InputLabels.Length >= custCompType.OutputLabels.Length with 
+            | true -> custCompType.InputLabels.Length * 40
+            | false -> custCompType.OutputLabels.Length * 40
+
+        newSymbolTemplate comptype pos height 140 inpPortWidths outPortWidths (compName) (model @ extraComps)
+
 
 /// Initialization
 let init () =
@@ -323,8 +367,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     match msg with
 
     // Adds new symbol to model
-    | AddSymbol (comptype, busWidth, pos) -> 
-        createNewSymbol comptype busWidth pos model [] :: model, Cmd.none
+    | AddSymbol (comptype, pos, compName) -> 
+        createNewSymbol comptype compName pos model [] :: model, Cmd.none
 
     // Deletes symbol from model
     | DeleteSymbol -> 
@@ -424,8 +468,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
         model
         |> List.map (fun sym -> 
-                        if symbolSelected sym.Pos then {sym with IsSelected=true; ExpandedPort = None} 
-                        else {sym with IsSelected=false; ExpandedPort = None}), Cmd.none
+                        if symbolSelected sym.Pos then {sym with IsSelected=true; ExpandedPort = (None, None)} 
+                        else {sym with IsSelected=false; ExpandedPort = (None, None)}), Cmd.none
 
     // Mark all symbols that are being hovered by mouse at pos as IsHovered = true
     | SymbolHovering pos ->
@@ -450,11 +494,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | ExpandPort (portType, portWidth) ->
         model
         |> List.map (fun sym -> 
-                        // assume all input ports in the same symbol has the same width
-                        if portWidth = sym.InputPorts.[0].Width then {sym with ExpandedPort = Some portType} 
-                        else sym
+                        match sym.Type with
+                        | BusSelection _ -> sym
+                        | MergeWires -> sym
+                        | SplitWire _ -> sym
+                        | _ ->
+                            {sym with ExpandedPort = (Some portType, portWidth)}
                     ), Cmd.none
-
     
     | CopySymbols ->
         model 
@@ -467,7 +513,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let rec getNewModel (curModel: Model) (newComponents: Symbol List) = 
             match curModel with
             | (sym::tl) when sym.IsCopied ->
-                let newSymbol = createNewSymbol (sym.Type) (sym.InputPorts.[0].Width) (posAdd sym.Pos pasteMargin) model newComponents
+                let newSymbol = createNewSymbol sym.Type sym.Label (posAdd sym.Pos pasteMargin) model newComponents
                 {sym with IsSelected = false; IsCopied=false}::({newSymbol with IsSelected=true}::(getNewModel tl (newComponents @ [newSymbol])))
             | (sym::tl) -> sym::(getNewModel tl newComponents)
             | [] -> []
@@ -588,18 +634,6 @@ let private renderShape =
             // portFillInput and portFillOutput shows the fill color of the ports in a symbol. If the symbol is 
             // hovered, the fill color is "#2f5e5e" (dark blue), otherwise it is none (hidden). Thus, ports are 
             // only shown if the symbol is hovered.
-            let inputRadius, outputRadius, portFillInput, portFillOutput = 
-                match props.Shape.ExpandedPort, props.Shape.IsHovered with
-                | None, true -> portRadius, portRadius, "#2f5e5e", "#2f5e5e"
-                | None, false -> portRadius, portRadius, "none", "none"
-                | Some CommonTypes.PortType.Input, true -> 
-                    expandedPortRadius, portRadius, "#2f5e5e", "#2f5e5e"
-                | Some CommonTypes.PortType.Input, false -> 
-                    expandedPortRadius, portRadius, "#2f5e5e", "none"
-                | Some CommonTypes.PortType.Output, true ->
-                    portRadius, expandedPortRadius, "#2f5e5e", "#2f5e5e"
-                | Some CommonTypes.PortType.Output, false ->
-                    portRadius, expandedPortRadius, "none", "#2f5e5e"  
 
             // obtains color of stroke and dash (when copied)
             let strokeColor = 
@@ -620,9 +654,26 @@ let private renderShape =
                 |> verticesToStr
 
             let createPortShapeAndLabel 
-                (i:int) (el: string) (color: string) 
-                (radius: float) (portType: CommonTypes.PortType)
+                (i:int) (el: string)
+                (portType: CommonTypes.PortType)
                 : ReactElement = 
+
+                let curPort = 
+                    match portType with 
+                    | CommonTypes.PortType.Input -> props.Shape.InputPorts.[i]
+                    | CommonTypes.PortType.Output -> props.Shape.OutputPorts.[i]
+
+                let portRadius, portFill = 
+                    match props.Shape.Type with
+                    | IOLabel | SplitWire _ | BusSelection _ | MergeWires -> portRadius, "#1b80b3"
+                    | _ ->
+                        match props.Shape.IsHovered, portType, fst props.Shape.ExpandedPort, snd props.Shape.ExpandedPort with
+                        | _, CommonTypes.PortType.Input, Some CommonTypes.PortType.Input, width when width = curPort.Width -> expandedPortRadius, "#2f5e5e"
+                        | _, CommonTypes.PortType.Output, Some CommonTypes.PortType.Output, width when width = curPort.Width -> expandedPortRadius, "#2f5e5e"
+                        | true, _, None, None -> portRadius, "#2f5e5e"
+                        | _ -> portRadius, "none"
+
+
                 g[][circle [
                             if portType = CommonTypes.PortType.Input then
                                 Cx props.Shape.InputPorts.[i].Pos.X; 
@@ -630,9 +681,9 @@ let private renderShape =
                             else
                                 Cx props.Shape.OutputPorts.[i].Pos.X; 
                                 Cy props.Shape.OutputPorts.[i].Pos.Y;
-                            R radius
-                            SVGAttr.Fill color
-                            SVGAttr.Stroke color
+                            R portRadius
+                            SVGAttr.Fill portFill
+                            SVGAttr.Stroke portFill
                             SVGAttr.StrokeWidth 1
                         ][];
 
@@ -661,9 +712,9 @@ let private renderShape =
                 |> List.mapi 
                     (fun i el -> 
                         if (inOrOut = CommonTypes.PortType.Input) then 
-                            createPortShapeAndLabel i el portFillInput inputRadius inOrOut
+                            createPortShapeAndLabel i el inOrOut
                         else
-                            createPortShapeAndLabel i el portFillOutput outputRadius inOrOut
+                            createPortShapeAndLabel i el inOrOut
                     )
                    
             let topLabel (symLabel: string) : ReactElement List = 
@@ -701,10 +752,10 @@ let private renderShape =
             let labels : ReactElement List = 
                 match (props.Shape.Type: CommonTypes.ComponentType) with
                 | Input width -> 
-                    (portLabels [0] CommonTypes.PortType.Input)
+                    (portLabels [0] CommonTypes.PortType.Output) 
                     @ (title "") 
                 | Output width -> 
-                    (portLabels [0] CommonTypes.PortType.Output) 
+                    (portLabels [0] CommonTypes.PortType.Input)
                     @ (title "") 
                 | IOLabel -> 
                     (portLabels [""] CommonTypes.PortType.Input) 
@@ -712,8 +763,7 @@ let private renderShape =
                     @ (title "") 
                 | BusSelection (outWidth, outLSBit) ->
                     (portLabels [0] CommonTypes.PortType.Input) 
-                    @ (portLabels [1] CommonTypes.PortType.Output) 
-                    @ (title (sprintf "(%d:0)" (outWidth - 1)))                                   
+                    @ (portLabels [1] CommonTypes.PortType.Output)                            
                 | Constant (width, value) -> 
                     (portLabels [""] CommonTypes.PortType.Output) 
                     @ (title (string value)) 
@@ -803,7 +853,18 @@ let private renderShape =
                     (portLabels ["addr"; "data-in"; "write"; "clk"] CommonTypes.PortType.Input) 
                     @ (portLabels ["data-out"] CommonTypes.PortType.Output) 
                     @ (title "RAM")
-                |_ -> failwith "Invalid Component Type"
+                | Custom custCompType ->
+                    let inputNameList = 
+                        custCompType.InputLabels
+                        |> List.map (fun x -> fst x)
+                   
+                    let outputNameList = 
+                        custCompType.OutputLabels
+                        |> List.map (fun x -> fst x)
+
+                    (portLabels inputNameList CommonTypes.PortType.Input) 
+                    @ (portLabels outputNameList CommonTypes.PortType.Output) 
+                    @ (title custCompType.Name)
             
             [
                 polygon
@@ -1020,12 +1081,12 @@ let findNextAvailablePos (symModel: Model) (dimensions: float * float) =
     // finds next available position in the canvas
     let nextAvailablePos = 
         let listX = 
-            [1..18]
-            |> List.map (fun x -> float(x * 70))
+            [1..15]
+            |> List.map (fun x -> float(x * 90))
        
         let listY = 
-            [2..15]
-            |> List.map (fun y -> float(y * 70))
+            [2..13]
+            |> List.map (fun y -> float(y * 90))
 
         List.allPairs listX listY
         |> List.tryFind (fun (x, y) -> checkIfPosAvailable {X=x; Y=y})
@@ -1037,6 +1098,136 @@ let findNextAvailablePos (symModel: Model) (dimensions: float * float) =
     // otherwise insert symbol in default position (100, 100)
     | None -> {X=100.; Y=100.;}
 
+
+// check if two ports can be connected by inference. If possible, return new symbol model
+// with modified ports and return true
+let portInference (symModel: Model) (port: CommonTypes.Port) (portWidth: int) : (Model * bool) = 
+    let hostSymbol = 
+        symModel
+        |> List.find (fun sym -> sym.Id = port.HostId)
+
+    // create new symbol based on new port width
+    let newHostSymbol = 
+        let newInpPorts = 
+            hostSymbol.InputPorts
+            |> List.map (fun curPort -> 
+                            if curPort.Id = port.Id then {curPort with Width = Some portWidth}
+                            else curPort)
+        let newOutPorts = 
+            hostSymbol.OutputPorts
+            |> List.map (fun curPort -> 
+                            if curPort.Id = port.Id then {curPort with Width = Some portWidth}
+                            else curPort)
+        {hostSymbol with InputPorts=newInpPorts; OutputPorts=newOutPorts}
+
+
+    // check if new symbol is valid
+    let updatedSymbol, isValid = 
+        match newHostSymbol.Type with
+        | SplitWire _ ->
+            let inpPort = newHostSymbol.InputPorts.[0]
+            let outPort2 = newHostSymbol.OutputPorts.[1]
+
+            // this is user-defined, should always hold a value
+            let outPort1 = newHostSymbol.OutputPorts.[0]
+
+            match outPort1.Width, inpPort.Width, outPort2.Width with
+            | Some x, Some y, Some z -> (newHostSymbol, y = x + z)
+            | Some x, Some y, None -> ({newHostSymbol with OutputPorts=[outPort1; {outPort2 with Width = Some(y - x)}]}, y > x)
+            | Some x, None, Some z -> ({newHostSymbol with InputPorts=[{inpPort with Width = Some(x + z)}]}, true)
+            | _ -> (newHostSymbol, false)
+        
+        | MergeWires ->
+            let inpPort1 = newHostSymbol.InputPorts.[0]
+            let inpPort2 = newHostSymbol.InputPorts.[1]
+            let outPort = newHostSymbol.OutputPorts.[0]
+
+            match inpPort1.Width, inpPort2.Width, outPort.Width with
+            | Some x, Some y, Some z -> (newHostSymbol, z = x + y)
+            | Some x, Some y, None -> ({newHostSymbol with OutputPorts=[{outPort with Width = Some(x + y)}]}, true)
+            | Some x, None, Some z -> ({newHostSymbol with InputPorts=[inpPort1; {inpPort2 with Width = Some(z - x)}]}, z > x)
+            | None, Some y, Some z -> ({newHostSymbol with InputPorts=[{inpPort1 with Width = Some(z - y)}; inpPort2]}, z > y)
+            | Some x, None, None -> (newHostSymbol, true)
+            | None, Some y, None -> (newHostSymbol, true)
+            | None, None, Some z -> (newHostSymbol, true)
+            | None, None, None -> (newHostSymbol, false)
+
+        | BusSelection (outWidth, outLSBit) ->
+            let inpPort = newHostSymbol.InputPorts.[0]
+
+            match inpPort.Width with
+            | Some width ->
+                if width >= outLSBit + outWidth then (newHostSymbol, true)
+                else (newHostSymbol, false)
+            | None ->
+                (newHostSymbol, false)
+
+        | IOLabel ->
+            let inpPort = newHostSymbol.InputPorts.[0]
+            let outPort = newHostSymbol.OutputPorts.[0]
+
+            match inpPort.Width, outPort.Width with 
+            | Some x, _ -> ({newHostSymbol with OutputPorts=[{outPort with Width = Some(x)}]}, true)
+            | _, Some x -> ({newHostSymbol with InputPorts=[{inpPort with Width = Some(x)}]}, true)
+            | _ -> (newHostSymbol, false)
+
+        | _ ->
+            (newHostSymbol, false)
+
+    match updatedSymbol, isValid with 
+    | newSymbol, true ->
+        let newSymModel = 
+            symModel
+            |> List.map (fun sym -> if sym.Id = hostSymbol.Id then newSymbol
+                                    else sym)
+        (newSymModel, true)
+
+    | _ ->
+        (symModel, false)
+
+
+let variablePortReset (symModel: Model) (port: CommonTypes.Port) : Model = 
+    let hostSymbol = 
+        symModel
+        |> List.find (fun sym -> sym.Id = port.HostId)
+
+    let newSymbol = 
+        match hostSymbol.Type with
+        | IOLabel -> hostSymbol
+
+        | BusSelection _ ->
+            let inpPort = hostSymbol.InputPorts.[0]
+
+            if inpPort.Id = port.Id then {hostSymbol with InputPorts=[{inpPort with Width = None}]}
+            else hostSymbol
+
+        | MergeWires ->
+            let inpPort1 = hostSymbol.InputPorts.[0]
+            let inpPort2 = hostSymbol.InputPorts.[1]
+            let outPort = hostSymbol.OutputPorts.[0]
+
+            if inpPort1.Id = port.Id then {hostSymbol with InputPorts=[{inpPort1 with Width = None}; inpPort2]}
+            else if inpPort2.Id = port.Id then {hostSymbol with InputPorts=[inpPort1; {inpPort2 with Width = None}]}
+            else if outPort.Id = port.Id then {hostSymbol with OutputPorts=[{outPort with Width = None}]}
+            else hostSymbol
+        
+        | SplitWire _ ->
+            let inpPort = hostSymbol.InputPorts.[0]
+            let outPort2 = hostSymbol.OutputPorts.[1]
+
+            // this is user-defined, should always hold a value
+            let outPort1 = hostSymbol.OutputPorts.[0]
+
+            if inpPort.Id = port.Id then {hostSymbol with InputPorts=[{inpPort with Width = None}]}
+            else if outPort2.Id = port.Id then {hostSymbol with OutputPorts=[outPort1; {outPort2 with Width = None}]}
+            else hostSymbol
+        
+        | _ -> hostSymbol
+
+
+    symModel
+    |> List.map (fun sym -> if sym.Id = hostSymbol.Id then newSymbol
+                            else sym)
 
 
 //------------------------------------------------------------------------//
