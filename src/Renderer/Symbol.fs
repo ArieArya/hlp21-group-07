@@ -1,4 +1,4 @@
-module Symbol
+﻿module Symbol
 open Fable.React
 open Fable.React.Props
 open Browser
@@ -26,6 +26,7 @@ type Symbol =
         OutputPorts: CommonTypes.Port list
         ExpandedPort: (CommonTypes.PortType option * int option)
         Vertices: XYPos list
+        SymbolNumber: int
         H: int
         W: int
     }
@@ -105,15 +106,6 @@ let posOfOutput (vertices: XYPos list) (index: int) (numInputs: int) =
 
     {X = curX; Y=curY}
 
-/// Converts list of coordinates to a string for SVG Polygon or Polyline. For example,
-/// [(1, 2); (3, 4); (5, 6)] becomes "1,2 3,4 5,6", which is the correct SVG format
-let convertPoly inpList = 
-    string(inpList)
-    |> String.collect (fun c -> if c = '(' || c = ')' || c = '[' || c = ']' then ""
-                                elif c = ';' then " "
-                                elif c = ' ' then ""
-                                else string c)
-
 /// Calculates port position
 let portPos 
     (inOrOut: CommonTypes.PortType) 
@@ -126,7 +118,6 @@ let portPos
                     pos.X + (float w/2.)
             Y = pos.Y - (float h/2.) + (float (h/(numberOfPorts + 1) * (portNumber+1)))
     }   
-
 
 /// Calculates vertices position
 let calcVertices (pos: XYPos) (h: int) (w: int) : XYPos List =
@@ -154,10 +145,9 @@ let verticesToStr (vertices: XYPos List) : string =
     |> List.map (fun pos -> (sprintf "%f,%f " pos.X pos.Y))
     |> List.fold (+) ""
 
-/// Obtains new label for symbols
-let getNextLabel (symModel: Model) (compType: CommonTypes.ComponentType) : string = 
+let getNextSymNumber (symModel: Model) (compType: CommonTypes.ComponentType) : int = 
     // obtain list of symbols with the same component type
-    let sameCompList = 
+    let sameCompSymNumber = 
         symModel 
         |> List.filter (fun sym ->
                             match sym.Type, compType with
@@ -176,37 +166,44 @@ let getNextLabel (symModel: Model) (compType: CommonTypes.ComponentType) : strin
                             | _ ->
                                 sym.Type = compType
                             )
+        |> List.map (fun x -> x.SymbolNumber)
+    
+    match sameCompSymNumber.Length with 
+    | 0 -> 1
+    | _ -> 
+        [1..(sameCompSymNumber.Length+1)]
+        |> List.find (fun x -> not (List.contains x sameCompSymNumber))
 
-    // obtain number of occurence of the component
-    let compOccurence = sameCompList.Length + 1
 
+/// Obtains new label for symbols
+let getNextLabel (compType: CommonTypes.ComponentType) (symNumber: int) : string = 
     match compType with 
-    | Input width -> "IN" + (string compOccurence)
-    | Output width -> "OUT" + (string compOccurence)
+    | Input width -> "IN" + (string symNumber)
+    | Output width -> "OUT" + (string symNumber)
     | IOLabel -> ""
     | BusSelection (outWidth, outLSBit) ->  ""                                
-    | Constant (width, value) -> ""
-    | Not -> "NOT" + (string compOccurence)
-    | And -> "AND" + (string compOccurence)
-    | Or -> "OR" + (string compOccurence)
-    | Xor -> "XOR" + (string compOccurence)
-    | Nand -> "NAND" + (string compOccurence)
-    | Nor -> "NOR" + (string compOccurence)
-    | Xnor -> "XNOR" + (string compOccurence)
-    | Decode4 -> "DEC" + (string compOccurence)
-    | Mux2 -> "MUX" + (string compOccurence)
-    | Demux2 -> "DEMUX" + (string compOccurence)
-    | NbitsAdder busWidth -> "ADDR" + (string compOccurence)
+    | Constant (width, value) -> "CONST" + (string symNumber)
+    | Not -> "NOT" + (string symNumber)
+    | And -> "AND" + (string symNumber)
+    | Or -> "OR" + (string symNumber)
+    | Xor -> "XOR" + (string symNumber)
+    | Nand -> "NAND" + (string symNumber)
+    | Nor -> "NOR" + (string symNumber)
+    | Xnor -> "XNOR" + (string symNumber)
+    | Decode4 -> "DEC" + (string symNumber)
+    | Mux2 -> "MUX" + (string symNumber)
+    | Demux2 -> "DEMUX" + (string symNumber)
+    | NbitsAdder busWidth -> "ADDR" + (string symNumber)
     | MergeWires -> ""
     | SplitWire busWidth -> ""
-    | DFF -> "DFF" + (string compOccurence)
-    | DFFE -> "DFFE" + (string compOccurence)
-    | Register busWidth -> "REG" + (string compOccurence)
-    | RegisterE busWidth -> "REGE" + (string compOccurence)                   
-    | AsyncROM mem -> "Async-ROM" + (string compOccurence)
-    | ROM mem -> "Sync-ROM" + (string compOccurence)
-    | RAM mem -> "RAM" + (string compOccurence)
-    | Custom custCompType -> "CUST" + (string compOccurence)
+    | DFF -> "DFF" + (string symNumber)
+    | DFFE -> "DFFE" + (string symNumber)
+    | Register busWidth -> "REG" + (string symNumber)
+    | RegisterE busWidth -> "REGE" + (string symNumber)                   
+    | AsyncROM mem -> "Async-ROM" + (string symNumber)
+    | ROM mem -> "Sync-ROM" + (string symNumber)
+    | RAM mem -> "RAM" + (string symNumber)
+    | Custom custCompType -> "CUST" + (string symNumber)
 
 //------------------------------------------------------------------------//
 //---------------------Skeleton Message type for symbols------------------//
@@ -262,11 +259,13 @@ let newSymbolTemplate
     let numberOfInputs = inputPortWidthList.Length
     let numberOfOutputs = outputPortWidthList.Length
 
+    let symNumber = getNextSymNumber model compType
+
     let compLabel = 
         match compType with 
         | IOLabel -> compName
         | BusSelection (outWidth, outLSBit) -> (sprintf "(%d:%d)" ((outWidth - 1) + outLSBit) (outLSBit))
-        | _ -> getNextLabel model compType
+        | _ -> getNextLabel compType symNumber
 
     {
         Pos = pos
@@ -294,6 +293,7 @@ let newSymbolTemplate
                     x outputPortWidthList.[x] pos h w numberOfOutputs))
         ExpandedPort = (None, None)
         Vertices = calcVertices pos h w
+        SymbolNumber = symNumber
         H = h
         W = w
     }
@@ -302,45 +302,45 @@ let newSymbolTemplate
 let createNewSymbol (comptype: CommonTypes.ComponentType) (compName: string) (pos: XYPos) (model: Model) (extraComps: Symbol List): Symbol =
     match comptype with 
     | Input busWidthx ->
-        newSymbolTemplate comptype pos 30 60 [Some 1] [Some busWidthx] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 20 60 [Some 1] [Some busWidthx] (compName) (model @ extraComps)
     | Output busWidthx -> 
-        newSymbolTemplate comptype pos 30 60 [Some busWidthx] [Some 1] (compName)(model @ extraComps)
+        newSymbolTemplate comptype pos 20 60 [Some busWidthx] [Some 1] (compName)(model @ extraComps)
     | BusSelection (outWidth, outLSBit) ->
-        newSymbolTemplate comptype pos 30 60 [None] [Some outWidth] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 20 60 [None] [Some outWidth] (compName) (model @ extraComps)
     | Constant (busWidthx, value) -> 
-        newSymbolTemplate comptype pos 20 50 [Some 1] [Some busWidthx] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 20 60 [Some 1] [Some busWidthx] (compName) (model @ extraComps)
     | IOLabel ->
-        newSymbolTemplate comptype pos 40 50 [None] [None] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 20 60 [None] [None] (compName) (model @ extraComps)
     | Not ->
-        newSymbolTemplate comptype pos 40 50 [Some 1] [Some 1] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 60 60 [Some 1] [Some 1] (compName) (model @ extraComps)
     | And | Or | Xor | Nand | Nor | Xnor ->
-        newSymbolTemplate comptype pos 60 70 [Some 1; Some 1] [Some 1] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 60 60 [Some 1; Some 1] [Some 1] (compName) (model @ extraComps)
     | Decode4 ->
-        newSymbolTemplate comptype pos 170 100 [Some 1; Some 1] [Some 1; Some 1; Some 1; Some 1] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 180 100 [Some 1; Some 1] [Some 1; Some 1; Some 1; Some 1] (compName) (model @ extraComps)
     | Mux2 -> 
-        newSymbolTemplate comptype pos 70 50 [Some 1; Some 1] [Some 1] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 60 60 [Some 1; Some 1] [Some 1] (compName) (model @ extraComps)
     | Demux2 ->
-        newSymbolTemplate comptype pos 70 50 [Some 1] [Some 1; Some 1] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 60 60 [Some 1] [Some 1; Some 1] (compName) (model @ extraComps)
     | NbitsAdder busWidthx -> 
-        newSymbolTemplate comptype pos 150 100 [Some 1; Some busWidthx; Some busWidthx] [Some 1; Some 1] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 140 100 [Some 1; Some busWidthx; Some busWidthx] [Some 1; Some 1] (compName) (model @ extraComps)
     | MergeWires -> 
-        newSymbolTemplate comptype pos 80 80 [None; None] [None] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 100 100 [None; None] [None] (compName) (model @ extraComps)
     | SplitWire busWidthx ->
-        newSymbolTemplate comptype pos 80 80 [None] [Some busWidthx; None] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 100 100 [None] [Some busWidthx; None] (compName) (model @ extraComps)
     | DFF ->
-        newSymbolTemplate comptype pos 60 50 [Some 1; Some 1] [Some 1] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 100 60 [Some 1; Some 1] [Some 1] (compName) (model @ extraComps)
     | DFFE -> 
-        newSymbolTemplate comptype pos 100 80 [Some 1; Some 1; Some 1] [Some 1] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 100 60 [Some 1; Some 1; Some 1] [Some 1] (compName) (model @ extraComps)
     | Register busWidthx ->
-        newSymbolTemplate comptype pos 100 120 [Some busWidthx] [Some busWidthx] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 140 100 [Some busWidthx; Some 1] [Some busWidthx] (compName) (model @ extraComps)
     | RegisterE busWidthx -> 
-        newSymbolTemplate comptype pos 100 120 [Some busWidthx] [Some busWidthx] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 140 100 [Some busWidthx; Some 1; Some 1] [Some busWidthx] (compName) (model @ extraComps)
     | AsyncROM mem ->
-        newSymbolTemplate comptype pos 150 100 [Some mem.AddressWidth] [Some mem.WordWidth] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 140 100 [Some mem.AddressWidth] [Some mem.WordWidth] (compName) (model @ extraComps)
     | ROM mem ->
-        newSymbolTemplate comptype pos 150 100 [Some mem.AddressWidth; Some 1] [Some mem.WordWidth] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 140 100 [Some mem.AddressWidth; Some 1] [Some mem.WordWidth] (compName) (model @ extraComps)
     | RAM mem ->
-        newSymbolTemplate comptype pos 150 160 [Some mem.AddressWidth; Some mem.WordWidth; Some 1; Some 1] [Some mem.WordWidth] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 140 140 [Some mem.AddressWidth; Some mem.WordWidth; Some 1; Some 1] [Some mem.WordWidth] (compName) (model @ extraComps)
     | Custom custCompType ->
         let inpPortWidths = 
             custCompType.InputLabels
@@ -352,8 +352,8 @@ let createNewSymbol (comptype: CommonTypes.ComponentType) (compName: string) (po
 
         let height = 
             match custCompType.InputLabels.Length >= custCompType.OutputLabels.Length with 
-            | true -> custCompType.InputLabels.Length * 40
-            | false -> custCompType.OutputLabels.Length * 40
+            | true -> custCompType.InputLabels.Length * 40 + 20
+            | false -> custCompType.OutputLabels.Length * 40 + 20
 
         newSymbolTemplate comptype pos height 140 inpPortWidths outPortWidths (compName) (model @ extraComps)
 
@@ -442,9 +442,57 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             if (sId <> sym.Id && not sym.IsSelected) then 
                 sym
             else
+                let cornerPointX = sym.Vertices.[0].X
+                let cornerPointY = sym.Vertices.[0].Y
+
+                let diffY = 
+                    let nearestFloorGridValue = floor(cornerPointY / 20.) * 20.
+                    if (cornerPointY - nearestFloorGridValue) > 10. then ((nearestFloorGridValue + 20.) - cornerPointY)
+                    else (nearestFloorGridValue - cornerPointY)
+
+                let diffX = 
+                    let nearestFloorGridValue = floor(cornerPointX / 20.) * 20.
+                    if (cornerPointX - nearestFloorGridValue) > 10. then ((nearestFloorGridValue + 20.) - cornerPointX)
+                    else (nearestFloorGridValue - cornerPointX)
+
+                let diff = 
+                    {X = diffX; Y = diffY}
+
+                // finds new position of symbol
+                let curPos = posAdd sym.Pos diff                
+
+                // update vertices of symbol
+                let curVertices = 
+                    sym.Vertices
+                    |> List.map (fun x -> posAdd x diff)
+
+                // obtain number of input ports in the symbol
+                let inputPortLength = 
+                    sym.InputPorts.Length
+
+                // obtain number of output ports in the symbol
+                let outputPortLength = 
+                    sym.OutputPorts.Length
+
+                // obtains new position of the input ports
+                let newInputPorts = 
+                    sym.InputPorts
+                    |> List.mapi (fun i inpPort -> {inpPort with Pos = posOfInput curVertices (i+1) inputPortLength})
+
+                // obtains new position of the output ports
+                let newOutputPorts = 
+                    sym.OutputPorts
+                    |> List.mapi (fun i outPort -> {outPort with Pos = posOfOutput curVertices (i+1) outputPortLength})
+
                 { sym with
+                    Pos = curPos
+                    InputPorts = newInputPorts
+                    OutputPorts = newOutputPorts
+                    LastDragPos = curPos
+                    Vertices = curVertices
                     IsDragging = false
                 }
+
         ), Cmd.none
 
     // Unused Mouse Messages
@@ -1081,12 +1129,18 @@ let findNextAvailablePos (symModel: Model) (dimensions: float * float) =
     // finds next available position in the canvas
     let nextAvailablePos = 
         let listX = 
-            [1..15]
-            |> List.map (fun x -> float(x * 90))
+            [5..40]
+            |> List.collect (fun x -> 
+                                if x % 2 = 1 then [float(x * 30)]
+                                else []
+                                )
        
         let listY = 
-            [2..13]
-            |> List.map (fun y -> float(y * 90))
+            [5..40]
+            |> List.collect (fun y -> 
+                                if y % 2 = 1 then [float(y * 30)]
+                                else []
+                                )
 
         List.allPairs listX listY
         |> List.tryFind (fun (x, y) -> checkIfPosAvailable {X=x; Y=y})
