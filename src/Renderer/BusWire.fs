@@ -87,14 +87,14 @@ type LineRenderProps = {
     StrokeWidthP: string 
     }
 
-let makeSVGLine color (startP, endP) = 
+let makeSVGLine color width (startP, endP) = 
     line [
-        X1 startP.X
-        Y1 startP.Y
-        X2 endP.X
-        Y2 endP.Y
-        SVGAttr.Stroke color
-        SVGAttr.StrokeWidth (sprintf "2px")  ] []
+                X1 startP.X
+                Y1 startP.Y
+                X2 endP.X
+                Y2 endP.Y
+                SVGAttr.Stroke color
+                SVGAttr.StrokeWidth (sprintf "%ipx" width)  ] []
 
 let makeText (textIn: string) (pos: XYPos) (size: string) (col: string) = 
     text [ 
@@ -115,8 +115,11 @@ let makeWireAnnotation (wirePoints: XYPos list) (width: int) col = // Create wid
     let firstP = wirePoints.[1]
     let xPos = srcP.X + (firstP.X-srcP.X)/2.
     let widthText = makeText (sprintf "%i" width) {X=xPos; Y=srcP.Y-20.} "15px" col
-    let widthLine = makeSVGLine col ({ X =xPos-1.; Y=srcP.Y-10.}, {X =xPos+1.; Y=srcP.Y+10.})
+    let widthLine = makeSVGLine col 2 ({ X =xPos-1.; Y=srcP.Y-10.}, {X =xPos+1.; Y=srcP.Y+10.})
     [widthText; widthLine]
+
+let getNonLinearWidth width = 
+    10-(50/(width+5))
 
 let renderWire = // Return wire svg
     FunctionComponent.Of(
@@ -125,9 +128,10 @@ let renderWire = // Return wire svg
                 if props.ShowLegend 
                 then makeWireAnnotation (props.Points) (props.Width) (props.ColorP)
                 else []
+            let nonLinearWidth = getNonLinearWidth (props.Width)
             props.Points 
             |> List.pairwise //now we have points as pairs
-            |> List.map (makeSVGLine (props.ColorP))
+            |> List.map (makeSVGLine (props.ColorP) nonLinearWidth)
             |> fun svgline -> g [] (List.append svgline wireAnnotation)    
             )   
 
