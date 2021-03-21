@@ -1002,6 +1002,11 @@ let view (model : Model) (dispatch : Msg -> unit) =
 //------------------------------------------------------------------------//
 //-------------------------Other interface functions----------------------//
 //------------------------------------------------------------------------//
+let symbolBoundingBox (symModel: Model) (sId: CommonTypes.ComponentId) : XYPos List =
+    List.find (fun sym -> sym.Id = sId) symModel
+    |> (fun sym -> 
+        [sym.Vertices.[0]; sym.Vertices.[1]; sym.Vertices.[2]; sym.Vertices.[3]]
+    ) // list of vertices from top left, clockwise to bottom left
 
 /// Gets Symbol by Id
 let findSymbolById (symModel: Model) (sId: CommonTypes.ComponentId) : Symbol = 
