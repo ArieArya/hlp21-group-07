@@ -197,11 +197,32 @@ let getDidUser newPoints oldPoints oldDidUserModify = //work out if algorithm ha
     then generateFalses (List.length newPoints)
     else oldDidUserModify
 
+let areBothSymbolsBeingDragged (symbolModel: Symbol.Model) (wire: Wire) = 
+    let srcPortId = wire.SrcPort.Id 
+    let tgtPortId = wire.TargetPort.Id 
+    let isSrcBeingDragged = Symbol.isSymbolBeingDragged symbolModel srcPortId 
+    let isTgtBeingDragged = Symbol.isSymbolBeingDragged symbolModel tgtPortId
+    isSrcBeingDragged && isTgtBeingDragged 
+
+let addChangesToPoints xChange yChange points = 
+    points 
+    |> List.map (fun p -> {p with X = p.X+xChange; Y= p.Y+yChange})
+
+let translatePoints srcPortPos (points: XYPos list) = 
+    let xChange = srcPortPos.X - points.[0].X 
+    let yChange = srcPortPos.Y - points.[0].Y 
+
+    addChangesToPoints xChange yChange points 
 let updateWire (symbolModel: Symbol.Model) (wire: Wire) : Wire = 
     // get new source port pos
     let srcPortPos = Symbol.symbolPortPos (symbolModel) (wire.SrcPort.Id)
     let tgtPortPos = Symbol.symbolPortPos (symbolModel) (wire.TargetPort.Id)
-    let newPoints = createNewPoints srcPortPos tgtPortPos (wire.Points) (wire.DidUserModifyPoint)// changeInandOut (wire.Points) srcPortPos tgtPortPos
+    let areBothPortsBeingDragged = areBothSymbolsBeingDragged symbolModel wire
+
+    let newPoints = 
+        if areBothPortsBeingDragged 
+        then translatePoints srcPortPos (wire.Points)
+        else createNewPoints srcPortPos tgtPortPos (wire.Points) (wire.DidUserModifyPoint)    
     let didUser = getDidUser newPoints (wire.Points) (wire.DidUserModifyPoint)
     {wire with Points= newPoints; DidUserModifyPoint=didUser}
 
@@ -313,7 +334,7 @@ let moveWirePoints (wire: Wire) (mousePos: XYPos) : Wire=
                     | p when p=p2 -> newP2
                     | p -> p )
         {wire with Points=newPoints; SegmentSelected=Some (newP1, newP2)}
-    | None -> failwithf "Trying to move a wire without a segment selected"
+    | None -> wire
    
 let moveWire (mousePos: XYPos) (wire: Wire) : Wire = 
     if wire.IsSelected 
@@ -332,7 +353,7 @@ let handleMouseForWires (model: Model) mMsg : Model =
         List.map (updateWire (model.Symbol)) (model.WX)
  
     let finalModel = {model with WX=wireModel}
-
+    printfn "INSIDE HANDLEMOUSEFORWIRES"
     match mMsg.Op with 
     | Down -> wireSelector finalModel (mMsg.Pos)
     | Drag -> {model with WX=moveWires (finalModel.WX) (mMsg.Pos)}

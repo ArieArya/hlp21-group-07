@@ -1337,6 +1337,21 @@ let variablePortReset (symModel: Model) (port: CommonTypes.Port) : Model =
                             else sym)
 
 
+
+
+let doesPortBelongToSymbol (portId: string) symbol = 
+    let sameId (id: string) (port: CommonTypes.Port) = 
+        id = port.Id 
+    List.exists (sameId portId) (symbol.InputPorts) || List.exists (sameId portId) (symbol.OutputPorts)
+
+let findSymbolFromPort (symbolModel: Model) (portId: string) = 
+    List.tryFind (doesPortBelongToSymbol portId) symbolModel 
+
+let isSymbolBeingDragged (symbolModel: Model) (portId: string) = 
+    let symbolFound = findSymbolFromPort symbolModel portId
+    match symbolFound with  
+    | Some x -> x.IsDragging
+    | None -> false
 //------------------------------------------------------------------------//
 //---------------------------interface to Issie---------------------------//
 //------------------------------------------------------------------------//
