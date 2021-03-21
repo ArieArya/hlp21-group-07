@@ -139,7 +139,7 @@ let selectSide oldVal srcVal tgtVal = // helper to ensure wire does not go furth
     then tgtVal 
     else srcVal 
 
-let generateThreeLines srcPortPos tgtPortPos (oldPoints: XYPos list) (didUserModifyPoint: bool list) = //generates 4 points for wire based on new src and tgt points and old user modification information
+let generateThreeLines (symbolModel: Symbol.Model) srcPortPos tgtPortPos (oldPoints: XYPos list) (didUserModifyPoint: bool list) = //generates 4 points for wire based on new src and tgt points and old user modification information
     let horizontalDifference = tgtPortPos.X - srcPortPos.X
     let middleLineX = 
         if (didUserModifyPoint.[1] && didUserModifyPoint.[2]) //Check whether user modified the points of vertical line
@@ -148,6 +148,7 @@ let generateThreeLines srcPortPos tgtPortPos (oldPoints: XYPos list) (didUserMod
             then (oldPoints.[1].X)
             else selectSide (oldPoints.[1].X) (srcPortPos.X) (tgtPortPos.X)       
         else 
+            //here we'll want to avoid a symbol
             srcPortPos.X+horizontalDifference/2.
     [srcPortPos; {X=middleLineX; Y=srcPortPos.Y}; {X=middleLineX; Y=tgtPortPos.Y}; tgtPortPos]
             
@@ -178,18 +179,18 @@ let generateFiveLines srcPortPos tgtPortPos (oldPoints: XYPos list) (didUserModi
 let generateFalses count : bool list = //Helper to create initial DidUserModifyPoint
     List.replicate count false 
 
-let getInitialWirePoints (srcPortPos: XYPos) (tgtPortPos: XYPos) : XYPos list= 
+let getInitialWirePoints (symbolModel: Symbol.Model) (srcPortPos: XYPos) (tgtPortPos: XYPos) : XYPos list= 
     let initialDidUser = generateFalses 6
     if requiresThreeLines srcPortPos tgtPortPos 
-    then generateThreeLines srcPortPos tgtPortPos [] initialDidUser
+    then generateThreeLines symbolModel srcPortPos tgtPortPos [] initialDidUser
     else generateFiveLines srcPortPos tgtPortPos [] initialDidUser
 
-let createNewPoints srcPortPos tgtPortPos oldPoints didUserModifyPoint = 
+let createNewPoints (symbolModel: Symbol.Model) srcPortPos tgtPortPos oldPoints didUserModifyPoint = 
     let oldSrcPortPos = List.head oldPoints
     let oldTgtPortPos = List.last oldPoints 
     match (requiresThreeLines oldSrcPortPos oldTgtPortPos, requiresThreeLines srcPortPos tgtPortPos) with 
-    | (false, true) | (true, false) -> getInitialWirePoints srcPortPos tgtPortPos 
-    | (true, true) -> generateThreeLines srcPortPos tgtPortPos oldPoints didUserModifyPoint//keeping 3 lines
+    | (false, true) | (true, false) -> getInitialWirePoints symbolModel srcPortPos tgtPortPos 
+    | (true, true) -> generateThreeLines symbolModel srcPortPos tgtPortPos oldPoints didUserModifyPoint//keeping 3 lines
     | (false, false) -> generateFiveLines srcPortPos tgtPortPos oldPoints didUserModifyPoint
 
 let getDidUser newPoints oldPoints oldDidUserModify = //work out if algorithm had to change user set points
@@ -222,7 +223,7 @@ let updateWire (symbolModel: Symbol.Model) (wire: Wire) : Wire =
     let newPoints = 
         if areBothPortsBeingDragged 
         then translatePoints srcPortPos (wire.Points)
-        else createNewPoints srcPortPos tgtPortPos (wire.Points) (wire.DidUserModifyPoint)    
+        else createNewPoints symbolModel srcPortPos tgtPortPos (wire.Points) (wire.DidUserModifyPoint)    
     let didUser = getDidUser newPoints (wire.Points) (wire.DidUserModifyPoint)
     {wire with Points= newPoints; DidUserModifyPoint=didUser}
 
@@ -372,7 +373,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         | Some portWidth ->
             let srcPortPos = port1.Pos
             let targetPortPos = port2.Pos
-            let wirePoints = getInitialWirePoints srcPortPos targetPortPos
+            let wirePoints = getInitialWirePoints (model.Symbol) srcPortPos targetPortPos
             let newWire = makeWireFromPorts (port1) (port2) wirePoints (portWidth)
             {model with WX=List.append model.WX [newWire]}, Cmd.none
         | None ->
@@ -483,7 +484,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                         let newTargetPort = newTargetSymbol.OutputPorts.[targetPortIndex]
                                         let newSrcPortPos = newSrcPort.Pos
                                         let newTargetPortPos = newTargetPort.Pos
-                                        let wirePoints = getInitialWirePoints newSrcPortPos newTargetPortPos
+                                        let wirePoints = getInitialWirePoints (model.Symbol) newSrcPortPos newTargetPortPos
                                         let newWire = makeWireFromPorts (newSrcPort) (newTargetPort) wirePoints (wireWidth)
 
                                         [wire; newWire]
@@ -502,7 +503,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                         let newTargetPort = newTargetSymbol.InputPorts.[targetPortIndex]
                                         let newSrcPortPos = newSrcPort.Pos
                                         let newTargetPortPos = newTargetPort.Pos
-                                        let wirePoints = getInitialWirePoints newSrcPortPos newTargetPortPos
+                                        let wirePoints = getInitialWirePoints (model.Symbol) newSrcPortPos newTargetPortPos
                                         let newWire = makeWireFromPorts (newSrcPort) (newTargetPort) wirePoints (wireWidth)
 
                                         [wire; newWire]
