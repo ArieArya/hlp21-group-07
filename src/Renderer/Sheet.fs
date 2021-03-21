@@ -1396,17 +1396,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 | true, CommonTypes.PortType.Output ->
                     {model.DragWire with TargetEdge=pos}
             
-            // send mouse message to Buswire if no symbol dragging
-            let symbolDraggingCheck = Symbol.isAnySymbolDragging (model.Wire.Symbol)
-
-            match symbolDraggingCheck with 
-            | true -> 
-                {model with DragBox=newDragBox; DragWire=newDragWire}, Cmd.none
-            
-            | false ->
-                // send message to buswire
-                let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg mMsg) model.Wire
-                {model with Wire=updatedWire; DragBox=newDragBox; DragWire = newDragWire}, Cmd.none
+            let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg mMsg) model.Wire
+            {model with Wire=updatedWire; DragBox=newDragBox; DragWire = newDragWire}, Cmd.none
 
         // mouse move
         | Move -> 
