@@ -29,6 +29,7 @@ type Symbol =
         SymbolNumber: int
         H: int
         W: int
+        OriginCopiedId: CommonTypes.ComponentId
     }
 
 
@@ -58,6 +59,7 @@ type Msg =
     | ExpandPort of CommonTypes.PortType * int option
     | CopySymbols
     | PasteSymbols of XYPos
+    | ClearOriginCopiedId
 
 
 
@@ -296,6 +298,7 @@ let newSymbolTemplate
         SymbolNumber = symNumber
         H = h
         W = w
+        OriginCopiedId = CommonTypes.ComponentId "0" // default copied id
     }
 
 /// Creates New Symbol
@@ -322,7 +325,7 @@ let createNewSymbol (comptype: CommonTypes.ComponentType) (compName: string) (po
     | Demux2 ->
         newSymbolTemplate comptype pos 60 60 [Some 1] [Some 1; Some 1] (compName) (model @ extraComps)
     | NbitsAdder busWidthx -> 
-        newSymbolTemplate comptype pos 140 100 [Some 1; Some busWidthx; Some busWidthx] [Some 1; Some 1] (compName) (model @ extraComps)
+        newSymbolTemplate comptype pos 140 100 [Some 1; Some busWidthx; Some busWidthx] [Some busWidthx; Some 1] (compName) (model @ extraComps)
     | MergeWires -> 
         newSymbolTemplate comptype pos 100 100 [None; None] [None] (compName) (model @ extraComps)
     | SplitWire busWidthx ->
@@ -562,11 +565,25 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             match curModel with
             | (sym::tl) when sym.IsCopied ->
                 let newSymbol = createNewSymbol sym.Type sym.Label (posAdd sym.Pos pasteMargin) model newComponents
-                {sym with IsSelected = false; IsCopied=false}::({newSymbol with IsSelected=true}::(getNewModel tl (newComponents @ [newSymbol])))
+                
+                // for variable port widths, ensure their widths are all the same when pasted
+                let newInputPorts =    
+                    [0..(newSymbol.InputPorts.Length-1)] 
+                    |> List.map (fun i -> {newSymbol.InputPorts.[i] with Width=sym.InputPorts.[i].Width})
+                
+                let newOutputPorts =    
+                    [0..(newSymbol.OutputPorts.Length-1)] 
+                    |> List.map (fun i -> {newSymbol.OutputPorts.[i] with Width=sym.OutputPorts.[i].Width})
+
+                {sym with IsSelected = false; IsCopied=false}::({newSymbol with IsSelected=true; OriginCopiedId=sym.Id; InputPorts=newInputPorts; OutputPorts=newOutputPorts}::(getNewModel tl (newComponents @ [newSymbol])))
             | (sym::tl) -> sym::(getNewModel tl newComponents)
             | [] -> []
 
         getNewModel model [], Cmd.none
+
+    | ClearOriginCopiedId ->
+        model
+        |> List.map (fun sym -> {sym with OriginCopiedId=CommonTypes.ComponentId "0"}), Cmd.none
 
     // No other messages
     | _ -> model, Cmd.none
@@ -959,6 +976,16 @@ let view (model : Model) (dispatch : Msg -> unit) =
 //------------------------------------------------------------------------//
 //-------------------------Other interface functions----------------------//
 //------------------------------------------------------------------------//
+
+/// Gets Symbol by Id
+let findSymbolById (symModel: Model) (sId: CommonTypes.ComponentId) : Symbol = 
+    symModel
+    |> List.find (fun x -> x.Id = sId)
+
+/// Gets Symbol by OriginCopiedId
+let findSymbolByOriginCopiedId (symModel: Model) (sId: CommonTypes.ComponentId) : Symbol = 
+    symModel
+    |> List.find (fun x -> x.OriginCopiedId = sId)
 
 /// Finds port position
 let findPortPos (symModel: Model) (sId: CommonTypes.ComponentId) (portId: string): XYPos = 

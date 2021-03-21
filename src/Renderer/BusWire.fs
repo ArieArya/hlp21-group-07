@@ -341,71 +341,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with Symbol=sm}, Cmd.map Symbol sCmd
 
     | AddWire (port1, port2) -> 
-        //find the input and output ports from both ports
-        let matchPorts = 
-            // if both ports are inputs or both ports are output, return None, i.e.
-            // it is not possible to connect an input port to an input port, and an
-            // output port to an output port
-            match port1, port2 with
-            | p1, p2 when p1.PortType = p2.PortType ->
-                None
-            | p1, p2 when p1.PortType = CommonTypes.PortType.Input ->
-                Some(p1, p2)
-            | p1, p2 when p1.PortType = CommonTypes.PortType.Output ->
-                Some(p2, p1)
-            | _ -> None
-
-
-        // perform width inference
-        let matchWidths = 
-            match port1.Width, port2.Width with
-            | Some a, Some b when a = b -> true
-            | Some _, None -> true
-            | None, Some _ -> true
-            | _ -> false
-
-        // if no port combinations possible, return the original model, otherwise
-        // add new wire between the ports to the new model
-        match matchPorts, matchWidths with
-        | None, _ -> model, Cmd.none
-        | _, false -> model, Cmd.none
-
-        | Some (targetPort, srcPort), true ->
-            match targetPort.Width, srcPort.Width with
-            | Some a, Some b ->
-                let srcPortPos = srcPort.Pos
-                let targetPortPos = targetPort.Pos
-                let wirePoints = getInitialWirePoints srcPortPos targetPortPos
-                let newWire = makeWireFromPorts (srcPort) (targetPort) wirePoints (a)
-                {model with WX=List.append model.WX [newWire]}, Cmd.none
-
-            | Some a, None ->
-                let newSymModel, isValid = Symbol.portInference model.Symbol srcPort a
-                if isValid then
-                    let newSrcPort = {srcPort with Width = Some a}
-                    let srcPortPos = newSrcPort.Pos
-                    let targetPortPos = targetPort.Pos
-                    let wirePoints = getInitialWirePoints srcPortPos targetPortPos
-                    let newWire = makeWireFromPorts (newSrcPort) (targetPort) wirePoints (a)
-                    {model with WX=List.append model.WX [newWire]; Symbol = newSymModel}, Cmd.none
-                else 
-                    model, Cmd.none
-
-            | None, Some a ->
-                let newSymModel, isValid = Symbol.portInference model.Symbol targetPort a
-                if isValid then
-                    let newTargetPort = {targetPort with Width = Some a}
-                    let srcPortPos = srcPort.Pos
-                    let targetPortPos = newTargetPort.Pos
-                    let wirePoints = getInitialWirePoints srcPortPos targetPortPos
-                    let newWire = makeWireFromPorts (srcPort) (newTargetPort) wirePoints (a)
-                    {model with WX=List.append model.WX [newWire]; Symbol = newSymModel}, Cmd.none
-                else 
-                    model, Cmd.none
-
-            | None, None ->
-                model, Cmd.none
-                
+        match port1.Width with
+        | Some portWidth ->
+            let srcPortPos = port1.Pos
+            let targetPortPos = port2.Pos
+            let wirePoints = getInitialWirePoints srcPortPos targetPortPos
+            let newWire = makeWireFromPorts (port1) (port2) wirePoints (portWidth)
+            {model with WX=List.append model.WX [newWire]}, Cmd.none
+        | None ->
+            model, Cmd.none
 
     | DeleteWire (conId) -> 
         // filter out wire
@@ -469,7 +413,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let newWX = 
             model.WX 
             |> List.map (fun wire ->
-                            if wire.IsSelected then {wire with IsCopied = true}
+                            // make sure both symbols connected to wire is also selected 
+                            let srcSymbol = Symbol.findSymbolById model.Symbol wire.SrcPort.HostId
+                            let targetSymbol = Symbol.findSymbolById model.Symbol wire.TargetPort.HostId
+
+                            if (wire.IsSelected && srcSymbol.IsSelected && targetSymbol.IsSelected) then {wire with IsCopied = true}
                             else {wire with IsCopied = false}
                             )
 
@@ -481,62 +429,66 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         let newSymbols, _ = Symbol.update (Symbol.Msg.PasteSymbols pasteMargin) model.Symbol 
 
-        let rec getWireSymbolModel (wireList: Wire list) (finalSymModel) (finalWireModel: Wire list) = 
-            match wireList with 
-            | [] -> finalSymModel, finalWireModel
-            | (hdWire::tl) ->
-                    match hdWire.IsCopied with 
-                    | false -> getWireSymbolModel tl finalSymModel (hdWire::finalWireModel)
-                    | true ->
-                        let newSrcPos = posAdd hdWire.SrcPort.Pos pasteMargin
-                        let newTargetPos = posAdd hdWire.TargetPort.Pos pasteMargin
+        let newWX = 
+            model.WX
+            |> List.collect (fun wire ->
+                                if wire.IsCopied then
+                                    let srcPort = wire.SrcPort
+                                    let targetPort = wire.TargetPort
 
-                        let newSrcPort = Symbol.findPortByPosition newSymbols newSrcPos
-                        let newTargetPort = Symbol.findPortByPosition newSymbols newTargetPos
+                                    let srcSymbol = Symbol.findSymbolById newSymbols srcPort.HostId
+                                    let targetSymbol = Symbol.findSymbolById newSymbols targetPort.HostId
 
-                        match newSrcPort, newTargetPort with 
-                        | Some srcPort, Some targetPort -> 
-                            match targetPort.Width, srcPort.Width with
-                            | Some a, Some b when a = b ->
-                                let srcPortPos = srcPort.Pos
-                                let targetPortPos = targetPort.Pos
-                                let wirePoints = getInitialWirePoints srcPortPos targetPortPos
-                                let newWire = makeWireFromPorts (srcPort) (targetPort) wirePoints (a)
-                                getWireSymbolModel tl finalSymModel (hdWire::(newWire::finalWireModel))
+                                    let newSrcSymbol = Symbol.findSymbolByOriginCopiedId newSymbols srcSymbol.Id
+                                    let newTargetSymbol = Symbol.findSymbolByOriginCopiedId newSymbols targetSymbol.Id
 
-                            | Some a, None ->
-                                let newSymModel, isValid = Symbol.portInference finalSymModel srcPort a
-                                if isValid then
-                                    let newSrcPort = {srcPort with Width = Some a}
-                                    let srcPortPos = newSrcPort.Pos
-                                    let targetPortPos = targetPort.Pos
-                                    let wirePoints = getInitialWirePoints srcPortPos targetPortPos
-                                    let newWire = makeWireFromPorts (newSrcPort) (targetPort) wirePoints (a)
-                                    getWireSymbolModel tl newSymModel (hdWire::(newWire::finalWireModel))
-                                    
-                                else 
-                                    getWireSymbolModel tl finalSymModel (hdWire::finalWireModel)
+                                    match srcPort.PortType, targetPort.PortType, srcPort.Width with 
+                                    | CommonTypes.PortType.Input, CommonTypes.PortType.Output, Some wireWidth ->
+                                        let srcPortIndex = 
+                                            [0..(srcSymbol.InputPorts.Length-1)]
+                                            |> List.find (fun i -> srcSymbol.InputPorts.[i].Id = srcPort.Id)
 
-                            | None, Some a ->
-                                let newSymModel, isValid = Symbol.portInference finalSymModel targetPort a
-                                if isValid then
-                                    let newTargetPort = {targetPort with Width = Some a}
-                                    let srcPortPos = srcPort.Pos
-                                    let targetPortPos = newTargetPort.Pos
-                                    let wirePoints = getInitialWirePoints srcPortPos targetPortPos
-                                    let newWire = makeWireFromPorts (srcPort) (newTargetPort) wirePoints (a)
-                                    getWireSymbolModel tl newSymModel (hdWire::(newWire::finalWireModel))
-                                else 
-                                    getWireSymbolModel tl finalSymModel (hdWire::finalWireModel)
+                                        let targetPortIndex = 
+                                            [0..(targetSymbol.OutputPorts.Length-1)]
+                                            |> List.find (fun i -> targetSymbol.OutputPorts.[i].Id = targetPort.Id)
 
-                            | _ ->
-                                getWireSymbolModel tl finalSymModel (hdWire::finalWireModel)
-                                
+                                        let newSrcPort = newSrcSymbol.InputPorts.[srcPortIndex]
+                                        let newTargetPort = newTargetSymbol.OutputPorts.[targetPortIndex]
+                                        let newSrcPortPos = newSrcPort.Pos
+                                        let newTargetPortPos = newTargetPort.Pos
+                                        let wirePoints = getInitialWirePoints newSrcPortPos newTargetPortPos
+                                        let newWire = makeWireFromPorts (newSrcPort) (newTargetPort) wirePoints (wireWidth)
 
-                        | _ -> getWireSymbolModel tl finalSymModel (hdWire::finalWireModel)
+                                        [wire; newWire]
+                                        
+
+                                    | CommonTypes.PortType.Output, CommonTypes.PortType.Input, Some wireWidth ->
+                                        let srcPortIndex = 
+                                            [0..(srcSymbol.OutputPorts.Length-1)]
+                                            |> List.find (fun i -> srcSymbol.OutputPorts.[i].Id = srcPort.Id)
+
+                                        let targetPortIndex = 
+                                            [0..(targetSymbol.InputPorts.Length-1)]
+                                            |> List.find (fun i -> targetSymbol.InputPorts.[i].Id = targetPort.Id)
+
+                                        let newSrcPort = newSrcSymbol.OutputPorts.[srcPortIndex]
+                                        let newTargetPort = newTargetSymbol.InputPorts.[targetPortIndex]
+                                        let newSrcPortPos = newSrcPort.Pos
+                                        let newTargetPortPos = newTargetPort.Pos
+                                        let wirePoints = getInitialWirePoints newSrcPortPos newTargetPortPos
+                                        let newWire = makeWireFromPorts (newSrcPort) (newTargetPort) wirePoints (wireWidth)
+
+                                        [wire; newWire]
+
+                                    | _ -> [wire]
+
+                                else [wire]
+                                )
+
+        // remove all origincopied from current symbols
+        let newSymModel, _ = Symbol.update (Symbol.Msg.ClearOriginCopiedId) newSymbols
 
         
-        let newSymModel, newWX = getWireSymbolModel (model.WX) newSymbols []
 
         {model with WX=newWX; Symbol=newSymModel}, Cmd.none
 

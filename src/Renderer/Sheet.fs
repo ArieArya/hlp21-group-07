@@ -152,14 +152,15 @@ let rightColumn =
         Top "0px"
         Height  "100vh"
         Width "25%"
-        BorderTop "0.4vh solid lightgray"
-        BorderLeft "0.4vh solid lightgray"
-        BorderBottom "0.4vh solid lightgray"
+        BorderLeft  "0.2vh solid lightgray"
+        BorderTop "0.2vh solid lightgray"
+        BorderBottom "0.2vh solid lightgray"
+        BorderRight "0.2vh solid lightgray"
         Margin "0"
         Padding "0"
         UserSelect UserSelectOptions.None
         ZIndex 31
-        BackgroundColor "#f2f2f2"
+        BackgroundColor "#fcfcfc"
     ]
 
 // obtain canvas height and width from CommonTypes
@@ -285,9 +286,8 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
           svg
             [ Style 
                 [
-                    BorderTop "0.4vh solid lightgray"
                     Height canvasHeight
-                    Width canvasWidth          
+                    Width canvasWidth     
                 ]
             ]
             [ g 
@@ -1305,9 +1305,65 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     // should always return Some (not None)
                     match startDragPort with
                     | Some originPort ->
-                        // return updated model
-                        let newWire, _ = BusWire.update (BusWire.Msg.AddWire (originPort, port)) (updatedWire)
-                        {model with Wire=newWire; DragBox=resetDragBox}, Cmd.none
+                        // perform width inference
+                        let port1 = originPort
+                        let port2 = port
+
+                        let matchPorts = 
+                            // if both ports are inputs or both ports are output, return None, i.e.
+                            // it is not possible to connect an input port to an input port, and an
+                            // output port to an output port
+                            match port1, port2 with
+                            | p1, p2 when p1.PortType = p2.PortType ->
+                                None
+                            | p1, p2 when p1.PortType = CommonTypes.PortType.Input ->
+                                Some(p1, p2)
+                            | p1, p2 when p1.PortType = CommonTypes.PortType.Output ->
+                                Some(p2, p1)
+                            | _ -> None
+
+                        let matchWidths = 
+                            match port1.Width, port2.Width with
+                            | Some a, Some b when a = b -> true
+                            | Some _, None -> true
+                            | None, Some _ -> true
+                            | _ -> false
+
+                        // if no port combinations possible, return the original model, otherwise
+                        // add new wire between the ports to the new model
+                        match matchPorts, matchWidths with
+                        | None, _ -> model, Cmd.none
+                        | _, false -> model, Cmd.none
+
+                        | Some (targetPort, srcPort), true ->
+                            match targetPort.Width, srcPort.Width with
+                            | Some a, Some b ->
+                                let newWire, _ = BusWire.update (BusWire.Msg.AddWire (srcPort, targetPort)) (updatedWire)
+                                {model with Wire=newWire; DragBox=resetDragBox}, Cmd.none
+
+                            | Some a, None ->
+                                let newSymModel, isValid = Symbol.portInference updatedWire.Symbol srcPort a
+                                if isValid then
+                                    let newSrcPort = {srcPort with Width = Some a}
+                                    let newWire, _ = BusWire.update (BusWire.Msg.AddWire (newSrcPort, targetPort)) (updatedWire)
+                                    let symUpdatedWire = {newWire with Symbol=newSymModel}
+                                    {model with Wire=symUpdatedWire; DragBox=resetDragBox}, Cmd.none
+
+                                else 
+                                    model, Cmd.none
+
+                            | None, Some a ->
+                                let newSymModel, isValid = Symbol.portInference updatedWire.Symbol targetPort a
+                                if isValid then
+                                    let newTargetPort = {targetPort with Width = Some a}
+                                    let newWire, _ = BusWire.update (BusWire.Msg.AddWire (srcPort, newTargetPort)) (updatedWire)
+                                    let symUpdatedWire = {newWire with Symbol=newSymModel}
+                                    {model with Wire=symUpdatedWire; DragBox=resetDragBox}, Cmd.none
+                                else 
+                                    {model with Wire=updatedWire; DragBox=resetDragBox}, Cmd.none
+
+                            | None, None ->
+                                {model with Wire=updatedWire; DragBox=resetDragBox}, Cmd.none
 
                     | None ->
                         // return updated model
