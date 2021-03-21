@@ -335,28 +335,30 @@ let moveWirePoints (wire: Wire) (mousePos: XYPos) : Wire=
                     | p -> p )
         {wire with Points=newPoints; SegmentSelected=Some (newP1, newP2)}
     | None -> wire
-   
-let moveWire (mousePos: XYPos) (wire: Wire) : Wire = 
-    if wire.IsSelected 
+
+let isOneOfTheSymbolsBeingDragged (symbolModel: Symbol.Model) firstPortId secondPortId : bool = 
+    (Symbol.isSymbolBeingDragged symbolModel firstPortId) || (Symbol.isSymbolBeingDragged symbolModel secondPortId)
+
+let moveWire (symbolModel: Symbol.Model) (mousePos: XYPos) (wire: Wire) : Wire = 
+    if wire.IsSelected && (not (isOneOfTheSymbolsBeingDragged symbolModel (wire.SrcPort.Id) (wire.TargetPort.Id)))//and neither symbol is being dragged 
     then        
         let newWire = moveWirePoints wire mousePos
         let didUserModify = generateDidUserModify (newWire.Points) (wire.Points) (wire.DidUserModifyPoint)
         {newWire with DidUserModifyPoint=didUserModify}
     else wire 
 
-let moveWires (wireModel: Wire list) (mousePos: XYPos) = 
-    wireModel
-    |> List.map (moveWire mousePos)
+let moveWires (model: Model) (mousePos: XYPos) = 
+    model.WX
+    |> List.map (moveWire (model.Symbol) mousePos)
 
 let handleMouseForWires (model: Model) mMsg : Model = 
     let wireModel : Wire list= 
         List.map (updateWire (model.Symbol)) (model.WX)
  
     let finalModel = {model with WX=wireModel}
-    printfn "INSIDE HANDLEMOUSEFORWIRES"
     match mMsg.Op with 
     | Down -> wireSelector finalModel (mMsg.Pos)
-    | Drag -> {model with WX=moveWires (finalModel.WX) (mMsg.Pos)}
+    | Drag -> {model with WX=moveWires finalModel (mMsg.Pos)}
     | _ -> model
 
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
