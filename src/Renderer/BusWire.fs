@@ -139,6 +139,20 @@ let selectSide oldVal srcVal tgtVal = // helper to ensure wire does not go furth
     then tgtVal 
     else srcVal 
 
+
+let isSymbolOnLineVertical (symbolModel: Symbol.Model) xPos firstY secondY (symbol: Symbol.Symbol) = 
+    let boundingBox = Symbol.symbolBoundingBox symbolModel (symbol.Id)
+    //let's just write it for vertical lines initially
+    xPos> boundingBox.[0].X && xPos < boundingBox.[1].X && 
+        ((boundingBox.[0].Y > firstY && boundingBox.[0].Y < secondY ) || (boundingBox.[3].Y > firstY && boundingBox.[3].Y < secondY ))
+
+
+let boundingBoxNearbyVertical xPos firstY secondY (symbolModel: Symbol.Model) = 
+    symbolModel 
+    |> List.tryFind (isSymbolOnLineVertical symbolModel xPos firstY secondY)
+    |> Option.map (fun sym -> Symbol.symbolBoundingBox symbolModel (sym.Id))
+
+
 let generateThreeLines (symbolModel: Symbol.Model) srcPortPos tgtPortPos (oldPoints: XYPos list) (didUserModifyPoint: bool list) = //generates 4 points for wire based on new src and tgt points and old user modification information
     let horizontalDifference = tgtPortPos.X - srcPortPos.X
     let middleLineX = 
@@ -148,8 +162,13 @@ let generateThreeLines (symbolModel: Symbol.Model) srcPortPos tgtPortPos (oldPoi
             then (oldPoints.[1].X)
             else selectSide (oldPoints.[1].X) (srcPortPos.X) (tgtPortPos.X)       
         else 
-            //here we'll want to avoid a symbol
-            srcPortPos.X+horizontalDifference/2.
+            //find whether there's a bounding box 
+            //try to change middleLineX to avoid it,
+            let initialXPos = srcPortPos.X+horizontalDifference/2.
+            let boundingBoxNearby = boundingBoxNearbyVertical initialXPos (srcPortPos.Y) (tgtPortPos.Y) symbolModel
+            match boundingBoxNearby with 
+            | None -> initialXPos 
+            | Some b -> b.[0].X
     [srcPortPos; {X=middleLineX; Y=srcPortPos.Y}; {X=middleLineX; Y=tgtPortPos.Y}; tgtPortPos]
             
 let generateFiveLines srcPortPos tgtPortPos (oldPoints: XYPos list) (didUserModifyPoint: bool list) = //Same as three lines
