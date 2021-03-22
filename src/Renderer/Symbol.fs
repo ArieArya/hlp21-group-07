@@ -19,6 +19,7 @@ type Symbol =
         IsSelected: bool
         IsHovered: bool
         IsCopied: bool
+        IsOverlapped: bool
         Id : CommonTypes.ComponentId
         Type: CommonTypes.ComponentType
         Label: string
@@ -55,6 +56,7 @@ type Msg =
     | DeleteSymbol 
     | BoxSelected of XYPos * XYPos * bool
     | SymbolHovering of XYPos
+    | SymbolOverlap
     | ExpandPort of CommonTypes.PortType * int option
     | CopySymbols
     | PasteSymbols of XYPos
@@ -208,6 +210,39 @@ let getNextLabel (compType: CommonTypes.ComponentType) (symNumber: int) : string
     | RAM mem -> "RAM" + (string symNumber)
     | Custom custCompType -> "CUST" + (string symNumber)
 
+// checks if a given position lies within a given symbol
+let posInSymbol (sym: Symbol) (pos:XYPos) : bool= 
+    let vertices = sym.Vertices
+
+    // assume square vertices for symbol
+    let v1 = vertices.[0]
+    let v2 = vertices.[1]
+    let v3 = vertices.[2]
+    
+    // perform bounding box calculation
+    (pos.X >= v1.X) && 
+    (pos.X <= v2.X) && 
+    (pos.Y >= v2.Y) && 
+    (pos.Y <= v3.Y)
+
+// checks if two symbols bounding boxes overlap
+let checkIfSymbolsOverlap (symModel: Model) (sym1: Symbol) : bool = 
+    let overlappedSymbol = 
+        symModel
+        |> List.tryFind (fun sym2 -> 
+            let sym1Vertices = sym1.Vertices
+            let cornerInSymbol =
+                sym1Vertices
+                |> List.tryFind (fun vertex -> 
+                    ((posInSymbol sym2 vertex)&& (sym1 <> sym2)))
+            match cornerInSymbol with 
+            | Some x -> true
+            | None -> false
+        )
+
+    match overlappedSymbol with 
+    | Some x -> true
+    | None -> false
 //------------------------------------------------------------------------//
 //---------------------Skeleton Message type for symbols------------------//
 //------------------------------------------------------------------------//
@@ -277,6 +312,7 @@ let newSymbolTemplate
         IsSelected = false
         IsHovered = false
         IsCopied = false
+        IsOverlapped = false
         Id = id // create a unique id for this symbol
         Type = compType
         Label = compLabel
@@ -527,20 +563,47 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
     // Mark all symbols that are being hovered by mouse at pos as IsHovered = true
     | SymbolHovering pos ->
+        // model
+        // |> List.map (fun sym -> 
+        //                 let vertices = sym.Vertices
+
+        //                 // assume square vertices
+        //                 let v1 = vertices.[0]
+        //                 let v2 = vertices.[1]
+        //                 let v3 = vertices.[2]
+
+        //                 // perform calculation on bounding box
+        //                 if pos.X >= v1.X && pos.X <= v2.X && pos.Y >= v2.Y && pos.Y <= v3.Y
+        //                 then {sym with IsHovered=true}
+        //                 else {sym with IsHovered=false}
+        //             ), Cmd.none  
         model
-        |> List.map (fun sym -> 
-                        let vertices = sym.Vertices
+        |> List.map (fun sym ->
+            if (posInSymbol sym pos) then // checks if the position is in the symbol
+                { sym with
+                    IsHovered = true
+                }
+            else
+                { sym with
+                    IsHovered = false 
+                }
+        )
+        , Cmd.none  
 
-                        // assume square vertices
-                        let v1 = vertices.[0]
-                        let v2 = vertices.[1]
-                        let v3 = vertices.[2]
-
-                        // perform calculation on bounding box
-                        if pos.X >= v1.X && pos.X <= v2.X && pos.Y >= v2.Y && pos.Y <= v3.Y
-                        then {sym with IsHovered=true}
-                        else {sym with IsHovered=false}
-                    ), Cmd.none    
+    // Mark all symbols that overlap as IsOverlapped = true
+    | SymbolOverlap ->
+        model
+        |> List.map (fun sym ->
+            if (checkIfSymbolsOverlap model sym) then //check if the symbols overlap
+                { sym with
+                    IsOverlapped = true
+                }
+            else
+                { sym with
+                    IsOverlapped = false 
+                }
+        )
+        , Cmd.none
 
     // Set the corresponding expanded port as the value of ExpandedPorts. This is used for Wire Dragging, in
     // which if an output port is dragged, input ports with the same bus width will be expanded to indicate 
@@ -731,7 +794,11 @@ let private renderShape =
                     "#4fbdbd"
                 else
                     "#c7c9c9"
-            
+            // let borderColor = 
+            //     if props.Shape.IsOverlapped then
+            //         "#133f6b"
+            //     else 
+            //         color
             let opacity = 
                 match props.Shape.Type with
                     | MergeWires -> "0.0"
@@ -747,7 +814,8 @@ let private renderShape =
 
             // obtains color of stroke and dash (when copied)
             let strokeColor = 
-                if props.Shape.IsCopied then "#133f6b"
+                if props.Shape.IsCopied || props.Shape.IsOverlapped then 
+                    "#133f6b"
                 else color
 
             let strokeDashArray = 
@@ -1139,24 +1207,31 @@ let findPortByPosition (symModel: Model) (pos: XYPos) : CommonTypes.Port option 
 /// Finds if there is a symbol at a certain hovered position and whether it is selected
 let isSymbolHoveredAndSelected (symModel: Model) (pos: XYPos) = 
     // find if there is a symbol that is hovered or selected
-    let selectedSymbol = 
-        symModel
-        |> List.tryFind (fun sym -> 
-                            let vertices = sym.Vertices
+    
+    // let selectedSymbol = 
+    //     symModel
+    //     |> List.tryFind (fun sym -> 
+    //                         let vertices = sym.Vertices
 
-                            // assume square vertices for symbol
-                            let v1 = vertices.[0]
-                            let v2 = vertices.[1]
-                            let v3 = vertices.[2]
+    //                         // assume square vertices for symbol
+    //                         let v1 = vertices.[0]
+    //                         let v2 = vertices.[1]
+    //                         let v3 = vertices.[2]
 
-                            // perform bounding box calculation
-                            pos.X >= v1.X && pos.X <= v2.X && pos.Y >= v2.Y && pos.Y <= v3.Y)
+    //                         // perform bounding box calculation
+    //                         pos.X >= v1.X && pos.X <= v2.X && pos.Y >= v2.Y && pos.Y <= v3.Y)
 
-    // if no symbol is found, return false, else return whether the symbol is selected               
-    match selectedSymbol with
-    | None -> false
-    | Some sym ->
-        sym.IsSelected
+    // // if no symbol is found, return false, else return whether the symbol is selected               
+    // match selectedSymbol with
+    // | None -> false
+    // | Some sym ->
+    //     sym.IsSelected
+    symModel
+    |> List.tryFind (fun sym -> posInSymbol sym pos)
+    |> function    // if no symbol is found, return false, else return whether the symbol is selected  
+        | Some sym -> 
+            sym.IsSelected
+        | None -> false 
 
 /// Checks if symbol is selected
 let isSymbolSelected (symModel: Model) (sId: CommonTypes.ComponentId) : bool = 
