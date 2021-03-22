@@ -1291,7 +1291,7 @@ let findNextAvailablePos (symModel: Model) (dimensions: float * float) =
     // finds next available position in the canvas
     let nextAvailablePos = 
         let listX = 
-            [5..40]
+            [5..35]
             |> List.collect (fun x -> 
                                 if x % 2 = 1 then [float(x * 30)]
                                 else []
