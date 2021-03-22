@@ -1298,18 +1298,18 @@ let findNextAvailablePos (symModel: Model) (dimensions: float * float) =
                                 )
        
         let listY = 
-            [5..40]
+            [5..120]
             |> List.collect (fun y -> 
                                 if y % 2 = 1 then [float(y * 30)]
                                 else []
                                 )
 
-        List.allPairs listX listY
-        |> List.tryFind (fun (x, y) -> checkIfPosAvailable {X=x; Y=y})
+        List.allPairs listY listX
+        |> List.tryFind (fun (y, x) -> checkIfPosAvailable {X=x; Y=y})
     
     match nextAvailablePos with
     // if position found, create symbol in this position
-    | Some avPosition -> {X = fst avPosition; Y = snd avPosition}
+    | Some avPosition -> {X = snd avPosition; Y = fst avPosition}
 
     // otherwise insert symbol in default position (100, 100)
     | None -> {X=100.; Y=100.;}
