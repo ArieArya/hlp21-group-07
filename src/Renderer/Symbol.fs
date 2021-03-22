@@ -244,6 +244,9 @@ let checkIfSymbolsOverlap (symModel: Model) (sym1: Symbol) : bool =
     match overlappedSymbol with 
     | Some x -> true
     | None -> false
+
+// obtains the string from the component id
+let unwrapCompId (CommonTypes.ComponentId x) = x
 //------------------------------------------------------------------------//
 //---------------------Skeleton Message type for symbols------------------//
 //------------------------------------------------------------------------//
@@ -1098,11 +1101,13 @@ let view (model : Model) (dispatch : Msg -> unit) =
 //------------------------------------------------------------------------//
 //-------------------------Other interface functions----------------------//
 //------------------------------------------------------------------------//
+
+// returns a list of vertices from top left, clockwise to bottom left
 let symbolBoundingBox (symModel: Model) (sId: CommonTypes.ComponentId) : XYPos List =
     List.find (fun sym -> sym.Id = sId) symModel
     |> (fun sym -> 
         sym.Vertices
-    ) // list of vertices from top left, clockwise to bottom left
+    ) 
 
 /// Gets Symbol by Id
 let findSymbolById (symModel: Model) (sId: CommonTypes.ComponentId) : Symbol = 
@@ -1463,9 +1468,83 @@ let isSymbolBeingDragged (symbolModel: Model) (portId: string) =
 //------------------------------------------------------------------------//
 
 // interface for Issie currently not used
+
+/// Update the symbol with matching componentId to comp, or add a new symbol based on comp.
+let updateSymbolModelWithComponent (symModel: Model) (comp:CommonTypes.Component) : Model =
+    let pos = {
+                X = (float comp.X)
+                Y = (float comp.Y)
+            }
+
+    let checkIfInModel : Symbol option = 
+        symModel
+        |> List.tryFind (fun sym -> sym.Id = CommonTypes.ComponentId(comp.Id))
+    
+    match checkIfInModel with
+    | Some sym ->
+        // update the model by removing the existing symbol with that component Id
+        let updatedSymModel = 
+            symModel
+            |> List.filter (fun sym -> sym.Id <> CommonTypes.ComponentId(comp.Id))
+
+        // create updated symbol based on the component given
+        let updatedSym =
+            let symNumber = getNextSymNumber symModel comp.Type 
+            {
+                Pos = pos
+                LastDragPos = {X=0. ; Y=0.}
+                IsDragging = false
+                IsSelected = false
+                IsHovered = false
+                IsCopied = false
+                IsOverlapped = false
+                Id = CommonTypes.ComponentId(comp.Id)
+                Type = comp.Type
+                Label = comp.Label
+                InputPorts = comp.InputPorts
+                OutputPorts = comp.OutputPorts
+                Vertices = calcVertices pos comp.H comp.W
+                SymbolNumber = symNumber
+                ExpandedPort = (None, None)
+                H = comp.H
+                W = comp.W
+                OriginCopiedId = CommonTypes.ComponentId "0" // default copied id
+            }
+
+        // add the updated symbol to the head of the model
+        updatedSym :: updatedSymModel
+    | None ->
+        // create a new symbol based on the component given
+        let newSym : Symbol = 
+            createNewSymbol comp.Type comp.Label pos symModel []
+        
+        // add the new symbol to the head of the model
+        newSym :: symModel
+    
+
+// converts the symbol into a component type, which is used in Issie
+let symToComp (sym: Symbol) : CommonTypes.Component= {
+        Id = (unwrapCompId sym.Id)
+        Type = sym.Type
+        Label = sym.Label
+        InputPorts = sym.InputPorts
+        OutputPorts = sym.OutputPorts
+        X = (int sym.Pos.X)
+        Y = (int sym.Pos.Y)
+        H = sym.H
+        W = sym.W
+    }
+
+// extracts the symbol from the model and converts it to a component type before returning
 let extractComponent 
         (symModel: Model) 
         (sId:CommonTypes.ComponentId) : CommonTypes.Component= 
-    failwithf "Not implemented"
+
+    List.tryFind (fun sym -> sym.Id = sId) symModel
+    |> function
+        | Some x -> symToComp x 
+        | None -> failwithf "What? Symbol not found in model"
+
+// extracts the list of symbols from the model and converts them to the component type
 let extractComponents (symModel: Model) : CommonTypes.Component list = 
-    failwithf "Not implemented"
+    List.map symToComp symModel
