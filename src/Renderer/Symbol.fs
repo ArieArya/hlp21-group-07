@@ -698,7 +698,7 @@ type private RenderShapeProps =
 
 let notTriangle 
     (vertices: XYPos List) (pos: XYPos) 
-    (color: string): ReactElement List =
+    (color: string) (strokeColor: string): ReactElement List =
     [polygon
         [
             SVGAttr.Points 
@@ -708,7 +708,7 @@ let notTriangle
                     (vertices.[1].X + 10.) pos.Y 
                 )
             SVGAttr.Fill color
-            SVGAttr.Stroke "black"
+            SVGAttr.Stroke strokeColor
             SVGAttr.StrokeWidth 1
         ][]
     ]
@@ -800,11 +800,7 @@ let private renderShape =
                     "#4fbdbd"
                 else
                     "#c7c9c9"
-            // let borderColor = 
-            //     if props.Shape.IsOverlapped then
-            //         "#133f6b"
-            //     else 
-            //         color
+
             let opacity = 
                 match props.Shape.Type with
                     | MergeWires -> "0.0"
@@ -818,7 +814,7 @@ let private renderShape =
             // hovered, the fill color is "#2f5e5e" (dark blue), otherwise it is none (hidden). Thus, ports are 
             // only shown if the symbol is hovered.
 
-            // obtains color of stroke and dash (when copied)
+            // obtains color of stroke and dash (when copied) or when the symbols overlap
             let strokeColor = 
                 if props.Shape.IsCopied || props.Shape.IsOverlapped then 
                     "#133f6b"
@@ -952,7 +948,7 @@ let private renderShape =
                     (portLabels [""] CommonTypes.PortType.Output) 
                     @ (title (string value)) 
                 | Not ->
-                    (notTriangle vertices props.Shape.Pos color) 
+                    notTriangle vertices props.Shape.Pos color strokeColor
                     @ (portLabels [0] CommonTypes.PortType.Input) 
                     @ (portLabels [1] CommonTypes.PortType.Output) 
                     @ (title "1")
@@ -969,17 +965,17 @@ let private renderShape =
                     @ (portLabels [2] CommonTypes.PortType.Output) 
                     @ (title "=1")
                 | Nand ->
-                    notTriangle vertices props.Shape.Pos color 
+                    notTriangle vertices props.Shape.Pos color strokeColor
                     @ (portLabels [0; 1] CommonTypes.PortType.Input) 
                     @ (portLabels [2] CommonTypes.PortType.Output) 
                     @ (title "&")
                 | Nor ->
-                    notTriangle vertices props.Shape.Pos color 
+                    notTriangle vertices props.Shape.Pos color strokeColor
                     @ (portLabels [0; 1] CommonTypes.PortType.Input) 
                     @ (portLabels [2] CommonTypes.PortType.Output) 
                     @ (title ">=1")
                 | Xnor ->
-                    notTriangle vertices props.Shape.Pos color 
+                    notTriangle vertices props.Shape.Pos color strokeColor 
                     @ (portLabels [0; 1] CommonTypes.PortType.Input) 
                     @ (portLabels [2] CommonTypes.PortType.Output) 
                     @ (title "=1")
@@ -1073,7 +1069,7 @@ let private renderShape =
                         SVGAttr.Points verticesStr
                         SVGAttr.Fill color
                         SVGAttr.FillOpacity opacity
-                        SVGAttr.StrokeWidth 2
+                        SVGAttr.StrokeWidth 1
                         SVGAttr.Stroke strokeColor
                         SVGAttr.StrokeDasharray strokeDashArray
                     ][ ]
