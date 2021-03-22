@@ -342,7 +342,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
           // draws the right-side menu column (for demo purposes only - i.e. to input different symbols)
           div [ rightColumn ][
               
-              div [ Style [Height "100%"; Width "100%"; TextAlign TextAlignOptions.Center]]
+              div [ Style [Height "100%"; Width "100%"; OverflowY OverflowOptions.Scroll; TextAlign TextAlignOptions.Center; PaddingBottom "5vh"]]
                   [
                       // module selection title
                       div [ Style [PaddingTop "5vh"]][
