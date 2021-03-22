@@ -53,13 +53,14 @@ type Msg =
     | EndDragging of sId : CommonTypes.ComponentId
     | AddSymbol of CommonTypes.ComponentType * XYPos * string
     | DeleteSymbol 
-    | UpdateSymbolModelWithComponent of CommonTypes.Component 
-    | BoxSelected of XYPos * XYPos
+    | BoxSelected of XYPos * XYPos * bool
     | SymbolHovering of XYPos
     | ExpandPort of CommonTypes.PortType * int option
     | CopySymbols
     | PasteSymbols of XYPos
+    | ClickSymbol of (XYPos * bool)
     | ClearOriginCopiedId
+    | SelectAllSymbols
 
 
 
@@ -502,7 +503,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | MouseMsg _ -> model, Cmd.none 
 
     // Mark all symbols covered by the mouse select box as IsSelected = true
-    | BoxSelected (pos1, pos2) ->
+    | BoxSelected (pos1, pos2, isCtrlPressed) ->
         let startX, startY, endX, endY = 
             let x1 = pos1.X
             let x2 = pos2.X
@@ -520,7 +521,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         model
         |> List.map (fun sym -> 
                         if symbolSelected sym.Pos then {sym with IsSelected=true; ExpandedPort = (None, None)} 
-                        else {sym with IsSelected=false; ExpandedPort = (None, None)}), Cmd.none
+                        else 
+                            if isCtrlPressed then {sym with ExpandedPort = (None, None)}
+                            else {sym with IsSelected=false; ExpandedPort = (None, None)}), Cmd.none
 
     // Mark all symbols that are being hovered by mouse at pos as IsHovered = true
     | SymbolHovering pos ->
@@ -581,12 +584,34 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
         getNewModel model [], Cmd.none
 
+    | ClickSymbol (mousePos, isCtrlPressed) -> 
+        let isSymbolClicked symbol = 
+            let vertices = symbol.Vertices
+            // assume square vertices
+            let v1 = vertices.[0]
+            let v2 = vertices.[1]
+            let v3 = vertices.[2]
+
+            // perform calculation on bounding box
+            mousePos.X >= v1.X && mousePos.X <= v2.X && mousePos.Y >= v2.Y && mousePos.Y <= v3.Y
+
+        model
+        |> List.map (fun sym ->
+                        if isCtrlPressed && (isSymbolClicked sym) then 
+                            if sym.IsSelected then {sym with IsSelected=false}
+                            else {sym with IsSelected=true}
+                        else 
+                            sym
+                        ), Cmd.none
+
+
     | ClearOriginCopiedId ->
         model
         |> List.map (fun sym -> {sym with OriginCopiedId=CommonTypes.ComponentId "0"}), Cmd.none
 
-    // No other messages
-    | _ -> model, Cmd.none
+    | SelectAllSymbols ->
+        model
+        |> List.map (fun sym -> {sym with IsSelected=true}), Cmd.none
 
 
 
@@ -1340,9 +1365,7 @@ let variablePortReset (symModel: Model) (port: CommonTypes.Port) : Model =
     symModel
     |> List.map (fun sym -> if sym.Id = hostSymbol.Id then newSymbol
                             else sym)
-
-
-
+                            
 
 let doesPortBelongToSymbol (portId: string) symbol = 
     let sameId (id: string) (port: CommonTypes.Port) = 
