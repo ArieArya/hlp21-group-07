@@ -41,11 +41,13 @@ type Msg =
     | DeleteWire of (CommonTypes.ConnectionId)
     | ToggleLegend of (CommonTypes.ConnectionId)
     | SetColor of CommonTypes.HighLightColor
-    | MouseMsg of MouseT
+    | MouseMsg of MouseT * bool
     | DeleteWiresBySymbol
     | SelectWiresFromSymbol
     | CopyWires
     | PasteWires
+    | SelectAll
+    | BoxSelected of XYPos * XYPos * bool
 
 
 
@@ -110,7 +112,7 @@ let makeWireAnnotation (wirePoints: XYPos list) (width: int) col = // Create wid
     [widthText; widthLine]
 
 let getNonLinearWidth width = 
-    10-(50/(width+5))
+    5-(25/(width+7))
 
 let renderWire = // Return wire svg
     FunctionComponent.Of(
@@ -242,7 +244,7 @@ let view (model:Model) (dispatch: Dispatch<Msg>)=
                 ShowLegend = w.ShowLegend}
             renderWire props)
     let symbols = Symbol.view model.Symbol (fun sMsg -> dispatch (Symbol sMsg)) 
-    g [] [symbols; (g [] wires); ]
+    g [] [(g [] wires); symbols; ]
 
 
 let init n () =
@@ -268,8 +270,8 @@ let makeWireFromPorts (srcPort) (targetPort) (points: XYPos list) (width: int) :
 
 let wasMouseBetweenPoints mousePos points = 
     match points with 
-    | (first, second) when first.X = second.X -> (inbetween (mousePos.Y) (first.Y) (second.Y)) && (abs (mousePos.X-first.X) <20.)
-    | (first, second) when first.Y = second.Y -> (inbetween (mousePos.X) (first.X) (second.X)) && (abs (mousePos.Y-first.Y) <20.)
+    | (first, second) when first.X = second.X -> (inbetween (mousePos.Y) (first.Y) (second.Y)) && (abs (mousePos.X-first.X) < 5.)
+    | (first, second) when first.Y = second.Y -> (inbetween (mousePos.X) (first.X) (second.X)) && (abs (mousePos.Y-first.Y) < 5.)
     | _ -> false
 
 let wasWireClicked (mousePos: XYPos) (wire: Wire) : bool= 
@@ -284,10 +286,17 @@ let unselectAllWires wireModel =
     wireModel 
     |> List.map (fun w -> {w with IsSelected=false; SegmentSelected=None})
 
-let selectWire wire wireModel = 
-    wireModel 
-    |> unselectAllWires 
-    |> List.map (fun w -> if w.Id=wire.Id then {w with IsSelected=true} else w)
+let selectWire wire isCtrlPressed wireModel = 
+    if isCtrlPressed then
+        wireModel 
+        |> List.map (fun w -> if w.Id=wire.Id then 
+                                                if w.IsSelected then {w with IsSelected=false}
+                                                else {w with IsSelected=true}
+                              else w)
+    else 
+        wireModel 
+        |> unselectAllWires 
+        |> List.map (fun w -> if w.Id=wire.Id then {w with IsSelected=true} else w)
 
 let getSegmentClicked (wire: Wire) (mousePos: XYPos) : (XYPos *XYPos) option = 
     wire.Points 
@@ -298,16 +307,17 @@ let addSegment (wire: Wire) (segment : (XYPos *XYPos) option) wireModel =
     wireModel 
     |> List.map (fun w -> if w.Id=wire.Id then {w with SegmentSelected=segment} else w)
 
-let wireSelector (fullModel: Model) (mousePos: XYPos) = 
+let wireSelector (fullModel: Model) (mousePos: XYPos) (isCtrlPressed) = 
     let wireClicked = whichWireClicked (fullModel.WX) mousePos   
     let wireModel = 
-        match wireClicked with 
-        | Some w -> 
+        match wireClicked, isCtrlPressed with 
+        | Some w, _ -> 
             let segmentClicked = getSegmentClicked w mousePos
             fullModel.WX 
-            |> selectWire w 
+            |> selectWire w isCtrlPressed
             |> addSegment w segmentClicked
-        | None -> unselectAllWires (fullModel.WX)
+        | None, false -> unselectAllWires (fullModel.WX)
+        | None, true -> fullModel.WX
     {fullModel with WX=wireModel}
 
 let generateDidUserModify newPoints oldPoints oldTruths =   
@@ -351,13 +361,18 @@ let moveWires (model: Model) (mousePos: XYPos) =
     model.WX
     |> List.map (moveWire (model.Symbol) mousePos)
 
-let handleMouseForWires (model: Model) mMsg : Model = 
+let handleMouseForWires (model: Model) mMsg isCtrlPressed : Model = 
     let wireModel : Wire list= 
         List.map (updateWire (model.Symbol)) (model.WX)
  
     let finalModel = {model with WX=wireModel}
     match mMsg.Op with 
-    | Down -> wireSelector finalModel (mMsg.Pos)
+    | Down -> 
+        // select symbols 
+        let newSymbol, _ = Symbol.update (Symbol.Msg.ClickSymbol (mMsg.Pos, isCtrlPressed)) model.Symbol
+        let newWire = wireSelector finalModel (mMsg.Pos) (isCtrlPressed)
+        {newWire with Symbol=newSymbol}
+        
     | Drag -> {model with WX=moveWires finalModel (mMsg.Pos)}
     | _ -> model
 
@@ -418,8 +433,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let newSymbolModel, _ = Symbol.update (Symbol.Msg.DeleteSymbol) modifiedSymbol
         {model with WX = newWX; Symbol=newSymbolModel}, Cmd.none
 
-    | MouseMsg mMsg -> 
-        handleMouseForWires model mMsg, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
+    | MouseMsg (mMsg, isCtrlPressed) -> 
+        handleMouseForWires model mMsg isCtrlPressed, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
 
     | SelectWiresFromSymbol ->
         let newWX = 
@@ -452,7 +467,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
 
     | PasteWires ->
-        let pasteMargin = {X=80.; Y=80.}
+        let pasteMargin = {X=120.; Y=120.}
 
         let newSymbols, _ = Symbol.update (Symbol.Msg.PasteSymbols pasteMargin) model.Symbol 
 
@@ -505,7 +520,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                         let wirePoints = getInitialWirePoints newSrcPortPos newTargetPortPos
                                         let newWire = makeWireFromPorts (newSrcPort) (newTargetPort) wirePoints (wireWidth)
 
-                                        [wire; newWire]
+                                        [{wire with IsSelected=false}; {newWire with IsSelected=true}]
 
                                     | _ -> [wire]
 
@@ -515,12 +530,46 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         // remove all origincopied from current symbols
         let newSymModel, _ = Symbol.update (Symbol.Msg.ClearOriginCopiedId) newSymbols
 
-        
-
         {model with WX=newWX; Symbol=newSymModel}, Cmd.none
 
+    | SelectAll ->
+        let newSymbol, _ = Symbol.update (Symbol.Msg.SelectAllSymbols) model.Symbol
+        
+        let newWX =
+            model.WX
+            |> List.map (fun wire -> {wire with IsSelected=true})
+        
+        {model with WX=newWX; Symbol=newSymbol}, Cmd.none
 
+    | BoxSelected (pos1, pos2, isCtrlPressed) ->
+        let newSymbol = fst (Symbol.update (Symbol.Msg.BoxSelected (pos1, pos2, isCtrlPressed)) model.Symbol)
 
+        let newWX = 
+            let startX, startY, endX, endY = 
+                let x1 = pos1.X
+                let x2 = pos2.X
+                let y1 = pos1.Y
+                let y2 = pos2.Y
+
+                if x1 <= x2 && y1 <= y2 then x1, y1, x2, y2
+                elif x1 <= x2 && y1 > y2 then x1, y2, x2, y1
+                elif x1 > x2 && y1 <= y2 then x2, y1, x1, y2
+                else x2, y2, x1, y1
+
+            let portSelected (portPos: XYPos) = 
+                startX <= portPos.X && endX >= portPos.X && startY <= portPos.Y && endY >= portPos.Y 
+
+            model.WX
+            |> List.map (fun wire -> 
+                            let port1 = wire.SrcPort
+                            let port2 = wire.TargetPort
+           
+                            if (portSelected port1.Pos && portSelected port2.Pos) then {wire with IsSelected=true} 
+                            else 
+                                if isCtrlPressed then wire
+                                else {wire with IsSelected=false})
+
+        {model with WX=newWX; Symbol=newSymbol}, Cmd.none
 
 //------------------------------------------------------------------------//
 //-------------------------Other interface functions----------------------//
