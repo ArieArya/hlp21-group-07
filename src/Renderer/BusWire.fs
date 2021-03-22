@@ -48,6 +48,7 @@ type Msg =
     | PasteWires
     | SelectAll
     | BoxSelected of XYPos * XYPos * bool
+    | SaveModel
 
 
 
@@ -570,6 +571,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                 else {wire with IsSelected=false})
 
         {model with WX=newWX; Symbol=newSymbol}, Cmd.none
+
+
+    | SaveModel ->
+        let newSymbol, _ = Symbol.update (Symbol.Msg.SaveModel) model.Symbol
+        {model with Symbol=newSymbol}, Cmd.none 
 
 //------------------------------------------------------------------------//
 //-------------------------Other interface functions----------------------//
