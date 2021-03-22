@@ -156,6 +156,14 @@ let boundingBoxNearbyVertical xPos firstY secondY (symbolModel: Symbol.Model) =
     |> Option.map (fun sym -> Symbol.symbolBoundingBox symbolModel (sym.Id))
 
 
+let setupLinePos minimum maximum lowerMax upperMin = 
+    printfn "MINS ARE %A %A %A %A" minimum maximum lowerMax upperMin 
+    match 1 with 
+    | _ when lowerMax < minimum -> lowerMax - 30.
+    | _ when minimum < lowerMax -> (minimum+lowerMax)/2.
+    | _ when maximum > upperMin -> (maximum+upperMin)/2.
+    | _ -> (minimum + maximum)/2.
+
 let generateThreeLines (symbolModel: Symbol.Model) srcPortPos tgtPortPos (oldPoints: XYPos list) (didUserModifyPoint: bool list) = //generates 4 points for wire based on new src and tgt points and old user modification information
     let horizontalDifference = tgtPortPos.X - srcPortPos.X
     let middleLineX = 
@@ -171,10 +179,23 @@ let generateThreeLines (symbolModel: Symbol.Model) srcPortPos tgtPortPos (oldPoi
             let boundingBoxNearby = boundingBoxNearbyVertical initialXPos (srcPortPos.Y) (tgtPortPos.Y) symbolModel
             match boundingBoxNearby with 
             | None -> initialXPos 
-            | Some b -> b.[0].X
+            | Some b -> setupLinePos (srcPortPos.X) (tgtPortPos.X) (b.[0].X) (b.[1].X) 
     [srcPortPos; {X=middleLineX; Y=srcPortPos.Y}; {X=middleLineX; Y=tgtPortPos.Y}; tgtPortPos]
-            
-let generateFiveLines srcPortPos tgtPortPos (oldPoints: XYPos list) (didUserModifyPoint: bool list) = //Same as three lines
+
+
+let isSymbolOnLineHorizontal (symbolModel: Symbol.Model) yPos firstX secondX (symbol: Symbol.Symbol) = 
+    let boundingBox = Symbol.symbolBoundingBox symbolModel (symbol.Id)
+    //let's just write it for vertical lines initially
+    yPos > boundingBox.[0].Y && yPos < boundingBox.[2].Y && 
+        ((boundingBox.[1].X < firstX && boundingBox.[0].X > secondX ))// || (boundingBox.[0].X > firstX && boundingBox.[1].X < secondX ))
+
+
+let boundingBoxNearbyHorizontal yPos firstX secondX (symbolModel: Symbol.Model) = 
+    symbolModel 
+    |> List.tryFind (isSymbolOnLineHorizontal symbolModel yPos firstX secondX)
+    |> Option.map (fun sym -> Symbol.symbolBoundingBox symbolModel (sym.Id))
+
+let generateFiveLines (symbolModel: Symbol.Model) srcPortPos tgtPortPos (oldPoints: XYPos list) (didUserModifyPoint: bool list) = //Same as three lines
     let firstVerticalLineX = 
         if didUserModifyPoint.[1] && didUserModifyPoint.[2]
         then 
@@ -183,11 +204,6 @@ let generateFiveLines srcPortPos tgtPortPos (oldPoints: XYPos list) (didUserModi
             else srcPortPos.X
         else srcPortPos.X+100.
 
-    let horizontalLine = 
-        if didUserModifyPoint.[2] && didUserModifyPoint.[3]
-        then oldPoints.[2].Y 
-        else (srcPortPos.Y+tgtPortPos.Y)/2.
-
     let secondVerticalLineX = 
         if didUserModifyPoint.[3] && didUserModifyPoint.[4]
         then 
@@ -195,6 +211,18 @@ let generateFiveLines srcPortPos tgtPortPos (oldPoints: XYPos list) (didUserModi
             then oldPoints.[4].X 
             else tgtPortPos.X
         else tgtPortPos.X-100.
+
+    let horizontalLine = 
+        if didUserModifyPoint.[2] && didUserModifyPoint.[3]
+        then oldPoints.[2].Y 
+        else 
+            let initialY = (srcPortPos.Y+tgtPortPos.Y)/2.
+            let boundingBoxNearby = boundingBoxNearbyHorizontal initialY firstVerticalLineX secondVerticalLineX symbolModel
+            printfn "THE BB NEARBY IS %A" boundingBoxNearby
+            match boundingBoxNearby with 
+            | None -> initialY 
+            | Some b -> setupLinePos (srcPortPos.Y) (tgtPortPos.Y) (b.[0].Y) (b.[2].Y) 
+    
 
     [srcPortPos; {X=firstVerticalLineX; Y=srcPortPos.Y}; {X=firstVerticalLineX;Y=horizontalLine}; {X=secondVerticalLineX; Y=horizontalLine}; {X=secondVerticalLineX; Y=tgtPortPos.Y}; tgtPortPos]
 
@@ -205,7 +233,7 @@ let getInitialWirePoints (symbolModel: Symbol.Model) (srcPortPos: XYPos) (tgtPor
     let initialDidUser = generateFalses 6
     if requiresThreeLines srcPortPos tgtPortPos 
     then generateThreeLines symbolModel srcPortPos tgtPortPos [] initialDidUser
-    else generateFiveLines srcPortPos tgtPortPos [] initialDidUser
+    else generateFiveLines symbolModel srcPortPos tgtPortPos [] initialDidUser
 
 let createNewPoints (symbolModel: Symbol.Model) srcPortPos tgtPortPos oldPoints didUserModifyPoint = 
     let oldSrcPortPos = List.head oldPoints
@@ -213,7 +241,7 @@ let createNewPoints (symbolModel: Symbol.Model) srcPortPos tgtPortPos oldPoints 
     match (requiresThreeLines oldSrcPortPos oldTgtPortPos, requiresThreeLines srcPortPos tgtPortPos) with 
     | (false, true) | (true, false) -> getInitialWirePoints symbolModel srcPortPos tgtPortPos 
     | (true, true) -> generateThreeLines symbolModel srcPortPos tgtPortPos oldPoints didUserModifyPoint//keeping 3 lines
-    | (false, false) -> generateFiveLines srcPortPos tgtPortPos oldPoints didUserModifyPoint
+    | (false, false) -> generateFiveLines symbolModel srcPortPos tgtPortPos oldPoints didUserModifyPoint
 
 let getDidUser newPoints oldPoints oldDidUserModify = //work out if algorithm had to change user set points
     if (List.length newPoints <> List.length oldPoints)
