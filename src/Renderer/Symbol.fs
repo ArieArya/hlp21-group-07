@@ -61,6 +61,7 @@ type Msg =
     | ClickSymbol of (XYPos * bool)
     | ClearOriginCopiedId
     | SelectAllSymbols
+    | SaveModel
 
 
 
@@ -613,7 +614,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         model
         |> List.map (fun sym -> {sym with IsSelected=true}), Cmd.none
 
-
+    | SaveModel ->
+        model
+        |> List.map (fun sym -> {sym with IsDragging=false; IsHovered=false; IsSelected=false}), Cmd.none
 
 //------------------------------------------------------------------------//
 //-------------------------View Function for Symbols----------------------//
