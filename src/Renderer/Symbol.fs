@@ -19,6 +19,7 @@ type Symbol =
         IsSelected: bool
         IsHovered: bool
         IsCopied: bool
+        IsOverlapped: bool
         Id : CommonTypes.ComponentId
         Type: CommonTypes.ComponentType
         Label: string
@@ -53,13 +54,16 @@ type Msg =
     | EndDragging of sId : CommonTypes.ComponentId
     | AddSymbol of CommonTypes.ComponentType * XYPos * string
     | DeleteSymbol 
-    | UpdateSymbolModelWithComponent of CommonTypes.Component 
-    | BoxSelected of XYPos * XYPos
+    | BoxSelected of XYPos * XYPos * bool
     | SymbolHovering of XYPos
+    | SymbolOverlap
     | ExpandPort of CommonTypes.PortType * int option
     | CopySymbols
     | PasteSymbols of XYPos
+    | ClickSymbol of (XYPos * bool)
     | ClearOriginCopiedId
+    | SelectAllSymbols
+    | SaveModel
 
 
 
@@ -207,6 +211,42 @@ let getNextLabel (compType: CommonTypes.ComponentType) (symNumber: int) : string
     | RAM mem -> "RAM" + (string symNumber)
     | Custom custCompType -> "CUST" + (string symNumber)
 
+// checks if a given position lies within a given symbol
+let posInSymbol (sym: Symbol) (pos:XYPos) : bool= 
+    let vertices = sym.Vertices
+
+    // assume square vertices for symbol
+    let v1 = vertices.[0]
+    let v2 = vertices.[1]
+    let v3 = vertices.[2]
+    
+    // perform bounding box calculation
+    (pos.X >= v1.X) && 
+    (pos.X <= v2.X) && 
+    (pos.Y >= v2.Y) && 
+    (pos.Y <= v3.Y)
+
+// checks if two symbols bounding boxes overlap
+let checkIfSymbolsOverlap (symModel: Model) (sym1: Symbol) : bool = 
+    let overlappedSymbol = 
+        symModel
+        |> List.tryFind (fun sym2 -> 
+            let sym1Vertices = sym1.Vertices
+            let cornerInSymbol =
+                sym1Vertices
+                |> List.tryFind (fun vertex -> 
+                    ((posInSymbol sym2 vertex)&& (sym1 <> sym2)))
+            match cornerInSymbol with 
+            | Some x -> true
+            | None -> false
+        )
+
+    match overlappedSymbol with 
+    | Some x -> true
+    | None -> false
+
+// obtains the string from the component id
+let unwrapCompId (CommonTypes.ComponentId x) = x
 //------------------------------------------------------------------------//
 //---------------------Skeleton Message type for symbols------------------//
 //------------------------------------------------------------------------//
@@ -276,6 +316,7 @@ let newSymbolTemplate
         IsSelected = false
         IsHovered = false
         IsCopied = false
+        IsOverlapped = false
         Id = id // create a unique id for this symbol
         Type = compType
         Label = compLabel
@@ -502,7 +543,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | MouseMsg _ -> model, Cmd.none 
 
     // Mark all symbols covered by the mouse select box as IsSelected = true
-    | BoxSelected (pos1, pos2) ->
+    | BoxSelected (pos1, pos2, isCtrlPressed) ->
         let startX, startY, endX, endY = 
             let x1 = pos1.X
             let x2 = pos2.X
@@ -520,24 +561,53 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         model
         |> List.map (fun sym -> 
                         if symbolSelected sym.Pos then {sym with IsSelected=true; ExpandedPort = (None, None)} 
-                        else {sym with IsSelected=false; ExpandedPort = (None, None)}), Cmd.none
+                        else 
+                            if isCtrlPressed then {sym with ExpandedPort = (None, None)}
+                            else {sym with IsSelected=false; ExpandedPort = (None, None)}), Cmd.none
 
     // Mark all symbols that are being hovered by mouse at pos as IsHovered = true
     | SymbolHovering pos ->
+        // model
+        // |> List.map (fun sym -> 
+        //                 let vertices = sym.Vertices
+
+        //                 // assume square vertices
+        //                 let v1 = vertices.[0]
+        //                 let v2 = vertices.[1]
+        //                 let v3 = vertices.[2]
+
+        //                 // perform calculation on bounding box
+        //                 if pos.X >= v1.X && pos.X <= v2.X && pos.Y >= v2.Y && pos.Y <= v3.Y
+        //                 then {sym with IsHovered=true}
+        //                 else {sym with IsHovered=false}
+        //             ), Cmd.none  
         model
-        |> List.map (fun sym -> 
-                        let vertices = sym.Vertices
+        |> List.map (fun sym ->
+            if (posInSymbol sym pos) then // checks if the position is in the symbol
+                { sym with
+                    IsHovered = true
+                }
+            else
+                { sym with
+                    IsHovered = false 
+                }
+        )
+        , Cmd.none  
 
-                        // assume square vertices
-                        let v1 = vertices.[0]
-                        let v2 = vertices.[1]
-                        let v3 = vertices.[2]
-
-                        // perform calculation on bounding box
-                        if pos.X >= v1.X && pos.X <= v2.X && pos.Y >= v2.Y && pos.Y <= v3.Y
-                        then {sym with IsHovered=true}
-                        else {sym with IsHovered=false}
-                    ), Cmd.none    
+    // Mark all symbols that overlap as IsOverlapped = true
+    | SymbolOverlap ->
+        model
+        |> List.map (fun sym ->
+            if (checkIfSymbolsOverlap model sym) then //check if the symbols overlap
+                { sym with
+                    IsOverlapped = true
+                }
+            else
+                { sym with
+                    IsOverlapped = false 
+                }
+        )
+        , Cmd.none
 
     // Set the corresponding expanded port as the value of ExpandedPorts. This is used for Wire Dragging, in
     // which if an output port is dragged, input ports with the same bus width will be expanded to indicate 
@@ -581,14 +651,38 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
         getNewModel model [], Cmd.none
 
+    | ClickSymbol (mousePos, isCtrlPressed) -> 
+        let isSymbolClicked symbol = 
+            let vertices = symbol.Vertices
+            // assume square vertices
+            let v1 = vertices.[0]
+            let v2 = vertices.[1]
+            let v3 = vertices.[2]
+
+            // perform calculation on bounding box
+            mousePos.X >= v1.X && mousePos.X <= v2.X && mousePos.Y >= v2.Y && mousePos.Y <= v3.Y
+
+        model
+        |> List.map (fun sym ->
+                        if isCtrlPressed && (isSymbolClicked sym) then 
+                            if sym.IsSelected then {sym with IsSelected=false}
+                            else {sym with IsSelected=true}
+                        else 
+                            sym
+                        ), Cmd.none
+
+
     | ClearOriginCopiedId ->
         model
         |> List.map (fun sym -> {sym with OriginCopiedId=CommonTypes.ComponentId "0"}), Cmd.none
 
-    // No other messages
-    | _ -> model, Cmd.none
+    | SelectAllSymbols ->
+        model
+        |> List.map (fun sym -> {sym with IsSelected=true}), Cmd.none
 
-
+    | SaveModel ->
+        model
+        |> List.map (fun sym -> {sym with IsDragging=false; IsHovered=false; IsSelected=false}), Cmd.none
 
 //------------------------------------------------------------------------//
 //-------------------------View Function for Symbols----------------------//
@@ -604,7 +698,7 @@ type private RenderShapeProps =
 
 let notTriangle 
     (vertices: XYPos List) (pos: XYPos) 
-    (color: string): ReactElement List =
+    (color: string) (strokeColor: string): ReactElement List =
     [polygon
         [
             SVGAttr.Points 
@@ -614,7 +708,7 @@ let notTriangle
                     (vertices.[1].X + 10.) pos.Y 
                 )
             SVGAttr.Fill color
-            SVGAttr.Stroke "black"
+            SVGAttr.Stroke strokeColor
             SVGAttr.StrokeWidth 1
         ][]
     ]
@@ -706,7 +800,7 @@ let private renderShape =
                     "#4fbdbd"
                 else
                     "#c7c9c9"
-            
+
             let opacity = 
                 match props.Shape.Type with
                     | MergeWires -> "0.0"
@@ -720,9 +814,10 @@ let private renderShape =
             // hovered, the fill color is "#2f5e5e" (dark blue), otherwise it is none (hidden). Thus, ports are 
             // only shown if the symbol is hovered.
 
-            // obtains color of stroke and dash (when copied)
+            // obtains color of stroke and dash (when copied) or when the symbols overlap
             let strokeColor = 
-                if props.Shape.IsCopied then "#133f6b"
+                if props.Shape.IsCopied || props.Shape.IsOverlapped then 
+                    "#133f6b"
                 else color
 
             let strokeDashArray = 
@@ -853,7 +948,7 @@ let private renderShape =
                     (portLabels [""] CommonTypes.PortType.Output) 
                     @ (title (string value)) 
                 | Not ->
-                    (notTriangle vertices props.Shape.Pos color) 
+                    notTriangle vertices props.Shape.Pos color strokeColor
                     @ (portLabels [0] CommonTypes.PortType.Input) 
                     @ (portLabels [1] CommonTypes.PortType.Output) 
                     @ (title "1")
@@ -870,17 +965,17 @@ let private renderShape =
                     @ (portLabels [2] CommonTypes.PortType.Output) 
                     @ (title "=1")
                 | Nand ->
-                    notTriangle vertices props.Shape.Pos color 
+                    notTriangle vertices props.Shape.Pos color strokeColor
                     @ (portLabels [0; 1] CommonTypes.PortType.Input) 
                     @ (portLabels [2] CommonTypes.PortType.Output) 
                     @ (title "&")
                 | Nor ->
-                    notTriangle vertices props.Shape.Pos color 
+                    notTriangle vertices props.Shape.Pos color strokeColor
                     @ (portLabels [0; 1] CommonTypes.PortType.Input) 
                     @ (portLabels [2] CommonTypes.PortType.Output) 
                     @ (title ">=1")
                 | Xnor ->
-                    notTriangle vertices props.Shape.Pos color 
+                    notTriangle vertices props.Shape.Pos color strokeColor 
                     @ (portLabels [0; 1] CommonTypes.PortType.Input) 
                     @ (portLabels [2] CommonTypes.PortType.Output) 
                     @ (title "=1")
@@ -974,7 +1069,7 @@ let private renderShape =
                         SVGAttr.Points verticesStr
                         SVGAttr.Fill color
                         SVGAttr.FillOpacity opacity
-                        SVGAttr.StrokeWidth 2
+                        SVGAttr.StrokeWidth 1
                         SVGAttr.Stroke strokeColor
                         SVGAttr.StrokeDasharray strokeDashArray
                     ][ ]
@@ -1002,11 +1097,13 @@ let view (model : Model) (dispatch : Msg -> unit) =
 //------------------------------------------------------------------------//
 //-------------------------Other interface functions----------------------//
 //------------------------------------------------------------------------//
+
+// returns a list of vertices from top left, clockwise to bottom left
 let symbolBoundingBox (symModel: Model) (sId: CommonTypes.ComponentId) : XYPos List =
     List.find (fun sym -> sym.Id = sId) symModel
     |> (fun sym -> 
         sym.Vertices
-    ) // list of vertices from top left, clockwise to bottom left
+    ) 
 
 /// Gets Symbol by Id
 let findSymbolById (symModel: Model) (sId: CommonTypes.ComponentId) : Symbol = 
@@ -1114,24 +1211,31 @@ let findPortByPosition (symModel: Model) (pos: XYPos) : CommonTypes.Port option 
 /// Finds if there is a symbol at a certain hovered position and whether it is selected
 let isSymbolHoveredAndSelected (symModel: Model) (pos: XYPos) = 
     // find if there is a symbol that is hovered or selected
-    let selectedSymbol = 
-        symModel
-        |> List.tryFind (fun sym -> 
-                            let vertices = sym.Vertices
+    
+    // let selectedSymbol = 
+    //     symModel
+    //     |> List.tryFind (fun sym -> 
+    //                         let vertices = sym.Vertices
 
-                            // assume square vertices for symbol
-                            let v1 = vertices.[0]
-                            let v2 = vertices.[1]
-                            let v3 = vertices.[2]
+    //                         // assume square vertices for symbol
+    //                         let v1 = vertices.[0]
+    //                         let v2 = vertices.[1]
+    //                         let v3 = vertices.[2]
 
-                            // perform bounding box calculation
-                            pos.X >= v1.X && pos.X <= v2.X && pos.Y >= v2.Y && pos.Y <= v3.Y)
+    //                         // perform bounding box calculation
+    //                         pos.X >= v1.X && pos.X <= v2.X && pos.Y >= v2.Y && pos.Y <= v3.Y)
 
-    // if no symbol is found, return false, else return whether the symbol is selected               
-    match selectedSymbol with
-    | None -> false
-    | Some sym ->
-        sym.IsSelected
+    // // if no symbol is found, return false, else return whether the symbol is selected               
+    // match selectedSymbol with
+    // | None -> false
+    // | Some sym ->
+    //     sym.IsSelected
+    symModel
+    |> List.tryFind (fun sym -> posInSymbol sym pos)
+    |> function    // if no symbol is found, return false, else return whether the symbol is selected  
+        | Some sym -> 
+            sym.IsSelected
+        | None -> false 
 
 /// Checks if symbol is selected
 let isSymbolSelected (symModel: Model) (sId: CommonTypes.ComponentId) : bool = 
@@ -1187,25 +1291,25 @@ let findNextAvailablePos (symModel: Model) (dimensions: float * float) =
     // finds next available position in the canvas
     let nextAvailablePos = 
         let listX = 
-            [5..40]
+            [5..35]
             |> List.collect (fun x -> 
                                 if x % 2 = 1 then [float(x * 30)]
                                 else []
                                 )
        
         let listY = 
-            [5..40]
+            [5..120]
             |> List.collect (fun y -> 
                                 if y % 2 = 1 then [float(y * 30)]
                                 else []
                                 )
 
-        List.allPairs listX listY
-        |> List.tryFind (fun (x, y) -> checkIfPosAvailable {X=x; Y=y})
+        List.allPairs listY listX
+        |> List.tryFind (fun (y, x) -> checkIfPosAvailable {X=x; Y=y})
     
     match nextAvailablePos with
     // if position found, create symbol in this position
-    | Some avPosition -> {X = fst avPosition; Y = snd avPosition}
+    | Some avPosition -> {X = snd avPosition; Y = fst avPosition}
 
     // otherwise insert symbol in default position (100, 100)
     | None -> {X=100.; Y=100.;}
@@ -1340,9 +1444,7 @@ let variablePortReset (symModel: Model) (port: CommonTypes.Port) : Model =
     symModel
     |> List.map (fun sym -> if sym.Id = hostSymbol.Id then newSymbol
                             else sym)
-
-
-
+                            
 
 let doesPortBelongToSymbol (portId: string) symbol = 
     let sameId (id: string) (port: CommonTypes.Port) = 
@@ -1362,9 +1464,83 @@ let isSymbolBeingDragged (symbolModel: Model) (portId: string) =
 //------------------------------------------------------------------------//
 
 // interface for Issie currently not used
+
+/// Update the symbol with matching componentId to comp, or add a new symbol based on comp.
+let updateSymbolModelWithComponent (symModel: Model) (comp:CommonTypes.Component) : Model =
+    let pos = {
+                X = (float comp.X)
+                Y = (float comp.Y)
+            }
+
+    let checkIfInModel : Symbol option = 
+        symModel
+        |> List.tryFind (fun sym -> sym.Id = CommonTypes.ComponentId(comp.Id))
+    
+    match checkIfInModel with
+    | Some sym ->
+        // update the model by removing the existing symbol with that component Id
+        let updatedSymModel = 
+            symModel
+            |> List.filter (fun sym -> sym.Id <> CommonTypes.ComponentId(comp.Id))
+
+        // create updated symbol based on the component given
+        let updatedSym =
+            let symNumber = getNextSymNumber symModel comp.Type 
+            {
+                Pos = pos
+                LastDragPos = {X=0. ; Y=0.}
+                IsDragging = false
+                IsSelected = false
+                IsHovered = false
+                IsCopied = false
+                IsOverlapped = false
+                Id = CommonTypes.ComponentId(comp.Id)
+                Type = comp.Type
+                Label = comp.Label
+                InputPorts = comp.InputPorts
+                OutputPorts = comp.OutputPorts
+                Vertices = calcVertices pos comp.H comp.W
+                SymbolNumber = symNumber
+                ExpandedPort = (None, None)
+                H = comp.H
+                W = comp.W
+                OriginCopiedId = CommonTypes.ComponentId "0" // default copied id
+            }
+
+        // add the updated symbol to the head of the model
+        updatedSym :: updatedSymModel
+    | None ->
+        // create a new symbol based on the component given
+        let newSym : Symbol = 
+            createNewSymbol comp.Type comp.Label pos symModel []
+        
+        // add the new symbol to the head of the model
+        newSym :: symModel
+    
+
+// converts the symbol into a component type, which is used in Issie
+let symToComp (sym: Symbol) : CommonTypes.Component= {
+        Id = (unwrapCompId sym.Id)
+        Type = sym.Type
+        Label = sym.Label
+        InputPorts = sym.InputPorts
+        OutputPorts = sym.OutputPorts
+        X = (int sym.Pos.X)
+        Y = (int sym.Pos.Y)
+        H = sym.H
+        W = sym.W
+    }
+
+// extracts the symbol from the model and converts it to a component type before returning
 let extractComponent 
         (symModel: Model) 
         (sId:CommonTypes.ComponentId) : CommonTypes.Component= 
-    failwithf "Not implemented"
+
+    List.tryFind (fun sym -> sym.Id = sId) symModel
+    |> function
+        | Some x -> symToComp x 
+        | None -> failwithf "What? Symbol not found in model"
+
+// extracts the list of symbols from the model and converts them to the component type
 let extractComponents (symModel: Model) : CommonTypes.Component list = 
-    failwithf "Not implemented"
+    List.map symToComp symModel

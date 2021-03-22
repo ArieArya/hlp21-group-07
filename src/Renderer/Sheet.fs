@@ -74,9 +74,11 @@ type DragWireType = {
 
 type Model = {
     Wire: BusWire.Model
+    PastWireModels: BusWire.Model list
     ComponentInfo: CompInfo
     DragBox: DragBoxType
     DragWire: DragWireType
+    CtrlPressed: bool
     }
 
 
@@ -85,13 +87,17 @@ type Model = {
 //------------------------------------------------------------------------//
 
 type KeyboardMsg =
-    | CtrlS | AltC | AltV | AltZ | AltShiftZ | DEL
+    | CtrlS | AltC | AltV | AltZ | AltShiftZ | DEL | CtrlA | CtrlC | CtrlV | CtrlZ
+
+type KeyOp = 
+    | KeyDown | KeyUp
 
 type Msg =
     | Wire of BusWire.Msg
     | KeyPress of KeyboardMsg
     | CreateSymbol of CommonTypes.ComponentType * float * float
     | MouseMsg of MouseT
+    | CtrlKeyPress of KeyOp
 
     // This section is for handling user-defined parameters for Interface (replacing ISSIE)
     // for input and output
@@ -207,6 +213,24 @@ let convertPoly inpList =
                                 else string c)
 
 
+/// Stores past wire models to memory
+let storePastWireData (wireModel: BusWire.Model) (pastModelList: BusWire.Model list) = 
+    // clean current model by preventing any dragging / hovered symbols
+    let cleanModel, _ = BusWire.update (BusWire.Msg.SaveModel) wireModel
+    
+    // set maximum memory to 20 past operations 
+    match pastModelList.Length with 
+    | memLength when memLength < 20 ->
+        [cleanModel] @ pastModelList
+
+    | _ ->
+        // slice from index 0 to 8 (i.e. 19 elements)
+        let slicedList = 
+            pastModelList.[..18] 
+
+        [cleanModel] @ slicedList
+
+
 
 //------------------------------------------------------------------------//
 //-------------------------View Function for Sheets-----------------------//
@@ -227,6 +251,17 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
         let posX = (ev.pageX) / zoom
         let posY = (ev.pageY) / zoom
         dispatch (MouseMsg {Op = op ; Pos = {X = posX ; Y = posY}})
+
+    // dispatch a Sheet KeyMsg message if key message detected
+    let keyOp (op: KeyOp) (ev:Types.KeyboardEvent) = 
+        match ev.key, op, model.CtrlPressed with 
+        | "Control", KeyDown, false | "Control", KeyUp, true -> dispatch (CtrlKeyPress op)
+        | "Delete", KeyDown, _ -> dispatch (KeyPress DEL)
+        | "a", KeyDown, true | "A", KeyDown, true -> dispatch (KeyPress CtrlA)
+        | "c", KeyDown, true | "C", KeyDown, true -> dispatch (KeyPress CtrlC)
+        | "v", KeyDown, true | "V", KeyDown, true -> dispatch (KeyPress CtrlV)
+        | "z", KeyDown, true | "Z", KeyDown, true -> dispatch (KeyPress CtrlZ)
+        | _ -> ()
 
     // define the dragBox - the box in which users can select multiple symbols
     let dragBox = 
@@ -268,18 +303,23 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
         ][]
 
     // obtains the canvas for drawing the canvas grid and the busWire view
-    let baseCanvas = drawGrid @ [svgReact] @ [dragBox] @ [dragLine]
+    let baseCanvas = drawGrid @ [dragBox] @ [dragLine] @ [svgReact]
 
     // draws the SVG canvas
     div [ Style 
             [ 
                 CSSProp.OverflowX OverflowOptions.Hidden
                 CSSProp.OverflowY OverflowOptions.Auto
-            ] 
+                Outline "none"
+            ]
+          TabIndex -1
 
+          OnKeyDown (fun ev -> (keyOp KeyDown ev))
+          OnKeyUp (fun ev -> (keyOp KeyUp ev))
           OnMouseDown (fun ev -> (mouseOp Down ev))
           OnMouseUp (fun ev -> (mouseOp Up ev))
           OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
+          
         ]
         
         [            
@@ -287,7 +327,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
             [ Style 
                 [
                     Height canvasHeight
-                    Width canvasWidth     
+                    Width canvasWidth
                 ]
             ]
             [ g 
@@ -302,7 +342,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
           // draws the right-side menu column (for demo purposes only - i.e. to input different symbols)
           div [ rightColumn ][
               
-              div [ Style [Height "100%"; Width "100%"; TextAlign TextAlignOptions.Center]]
+              div [ Style [Height "100%"; Width "100%"; OverflowY OverflowOptions.Scroll; TextAlign TextAlignOptions.Center; PaddingBottom "5vh"]]
                   [
                       // module selection title
                       div [ Style [PaddingTop "5vh"]][
@@ -1126,11 +1166,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let wModel, wCmd = BusWire.update wMsg model.Wire
         {model with Wire = wModel}, Cmd.map Wire wCmd
 
-    // print and reset the performance statistics in dev tools window
-    | KeyPress AltShiftZ -> 
-        printStats() 
-        model, Cmd.none
-
     // draws new symbol
     | CreateSymbol (compType, width, height) ->
 
@@ -1145,26 +1180,54 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         // return updated model
         let newModel, newCmd = Symbol.update (Symbol.Msg.AddSymbol (compType, pos, compName)) model.Wire.Symbol
-        {model with Wire = {model.Wire with Symbol = newModel}}, newCmd
-
-    // deletes symbol
-    | KeyPress DEL ->
-        let newModel, _ = BusWire.update (BusWire.Msg.DeleteWiresBySymbol) model.Wire
-        {model with Wire = newModel}, Cmd.none
+        {model with Wire = {model.Wire with Symbol = newModel}; PastWireModels=(storePastWireData model.Wire model.PastWireModels)}, newCmd
 
     // sets color for model
     | KeyPress s -> 
         match s with
-        | AltC -> 
+        // select all
+        | CtrlA ->
+            let newWires, _ = BusWire.update (BusWire.Msg.SelectAll) model.Wire
+            {model with Wire=newWires}, Cmd.none
+
+        // copy
+        | CtrlC -> 
             let newWires, _ = BusWire.update (BusWire.Msg.CopyWires) model.Wire
             {model with Wire = newWires}, Cmd.none
 
-        | AltV -> 
+        // paste
+        | CtrlV -> 
             let newWires, _ = BusWire.update (BusWire.Msg.PasteWires) model.Wire
-            {model with Wire = newWires}, Cmd.none
+            {model with Wire = newWires; PastWireModels=(storePastWireData model.Wire model.PastWireModels)}, Cmd.none
+
+        // undo
+        | CtrlZ ->
+            match model.PastWireModels with 
+            | (hd::tl) ->
+                {model with Wire=hd; PastWireModels=tl}, Cmd.none
+
+            | [] -> model, Cmd.none
+
+        // delete
+        | DEL ->
+            let newModel, _ = BusWire.update (BusWire.Msg.DeleteWiresBySymbol) model.Wire
+            {model with Wire = newModel; PastWireModels=(storePastWireData model.Wire model.PastWireModels)}, Cmd.none
+
+        // print stats
+        | AltShiftZ -> 
+            printStats() 
+            model, Cmd.none
         
         | _ ->
             model, Cmd.none
+    
+    | CtrlKeyPress op ->
+        match op with 
+        | KeyUp ->  
+            {model with CtrlPressed = false}, Cmd.none
+        | KeyDown ->
+            {model with CtrlPressed = true}, Cmd.none
+
 
     // handles mouse operations
     | MouseMsg mMsg ->
@@ -1193,17 +1256,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             // performed for symbol being clicked. Once integrated, symbol will also be checked.
             match selectedPort, isAnythingDragging with
             | _, true -> 
-                // send mouse message to Buswire if no symbol is dragging
-                if symbolDraggingCheck then model, Cmd.none
-                else
-                    let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg mMsg) model.Wire
-                    {model with Wire=updatedWire}, Cmd.none
+                let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg (mMsg, model.CtrlPressed)) model.Wire
+                {model with Wire=updatedWire; PastWireModels=(storePastWireData model.Wire model.PastWireModels)}, Cmd.none
 
             | None, false ->
                 // initialize DragBox and DragWire
                 let newDragBox = {Edge1 = pos; Edge2 = pos; isDragging = true}
                 let newDragWire = {SrcEdge = pos; TargetEdge = pos; isDragging = false; DraggingPort=CommonTypes.PortType.Input}
-                let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg mMsg) model.Wire
+                let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg (mMsg, model.CtrlPressed)) model.Wire
                 {model with Wire=updatedWire; DragBox=newDragBox; DragWire=newDragWire}, Cmd.none
 
             | Some port, false ->
@@ -1240,7 +1300,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         |> Symbol.update (Symbol.Msg.ExpandPort (port.PortType, wire.SrcPort.Width))
                         |> fst
 
-                    {model with Wire={model.Wire with WX=updatedWire.WX; Symbol=newSymbol}; DragBox=newDragBox; DragWire=newDragWire}, Cmd.none
+                    {model with Wire={model.Wire with WX=updatedWire.WX; Symbol=newSymbol}; DragBox=newDragBox; DragWire=newDragWire; PastWireModels=(storePastWireData model.Wire model.PastWireModels)}, Cmd.none
                 
                 // if no wire exists, visualize a new one
                 | None -> 
@@ -1258,7 +1318,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         |> fst
                     
                     // returns updated model
-                    {model with Wire={model.Wire with Symbol=newSymbol}; DragBox=newDragBox; DragWire=newDragWire}, Cmd.none
+                    {model with Wire={model.Wire with Symbol=newSymbol}; DragBox=newDragBox; DragWire=newDragWire; PastWireModels=(storePastWireData model.Wire model.PastWireModels)}, Cmd.none
                     
         // mouse up
         | Up ->
@@ -1266,17 +1326,19 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             let resetDragBox = {Edge1=pos; Edge2=pos; isDragging=false}
             let resetDragWire = {SrcEdge=pos; TargetEdge=pos; isDragging=false; DraggingPort=CommonTypes.PortType.Input}
            
-            // make all ports not expanded / highlighted (since mouse is lifted)
-            let newSymbol = 
+            let updatedWire = 
                 match Symbol.isSymbolHoveredAndSelected model.Wire.Symbol pos with
-                // if mouse lifted on top of selected symbol, all symbols remain selected
-                | true -> model.Wire.Symbol
+                // if mouse lifted on top of selected symbol, all symbols & wires remain selected
+                | true -> 
+                    let newSymbol = 
+                        model.Wire.Symbol
+                        // make all ports not expanded / highlighted (since mouse is lifted)
+                        |> List.map (fun sym -> {sym with ExpandedPort = (None, None)})
+                
+                    {model.Wire with Symbol=newSymbol}
 
-                // otherwise, deselect all symbols
-                | false -> fst (Symbol.update (Symbol.Msg.BoxSelected (model.DragBox.Edge1, model.DragBox.Edge2)) model.Wire.Symbol)
-                |> List.map (fun sym -> {sym with ExpandedPort = (None, None)})
-
-            let updatedWire, _ = BusWire.update (BusWire.Msg.SelectWiresFromSymbol) {model.Wire with Symbol=newSymbol}
+                // otherwise, trigger select using box
+                | false -> fst (BusWire.update (BusWire.Msg.BoxSelected (model.DragBox.Edge1, model.DragBox.Edge2, model.CtrlPressed)) model.Wire)
 
             // find if mouse up occurs at any port
             let selectedPort = Symbol.findPortByPosition model.Wire.Symbol pos
@@ -1396,7 +1458,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 | true, CommonTypes.PortType.Output ->
                     {model.DragWire with TargetEdge=pos}
             
-            let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg mMsg) model.Wire
+            let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg (mMsg, model.CtrlPressed)) model.Wire
             {model with Wire=updatedWire; DragBox=newDragBox; DragWire = newDragWire}, Cmd.none
 
         // mouse move
@@ -1407,7 +1469,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
            
             // obtain new symbol
             let newSymbol, _ = 
-                Symbol.update (Symbol.Msg.SymbolHovering pos) model.Wire.Symbol
+                let hoverCheck, _ = 
+                    Symbol.update (Symbol.Msg.SymbolHovering pos) model.Wire.Symbol
+                //checking if symbol overlaps any other symbol in model and checking if hovering over symbol
+                Symbol.update Symbol.Msg.SymbolOverlap hoverCheck 
 
             // move wire alongside its corresponding ports if symbol moved
             let newWX = 
@@ -1502,6 +1567,7 @@ let init() =
 
     {
         Wire = model
+        PastWireModels = []
         // initialize user-defined values
         ComponentInfo = {InputWidth = 1; OutputWidth = 1; BusSelectionOutWidth = 2; BusSelectionLSB = 0; ConstantValue = 1; ConstantWidth = 1;
                         AsyncROMMemBits = 1; AsyncROMOutWidth = 1; ROMMemBits = 1; ROMOutWidth = 1; RAMMemBits = 1; RAMOutWidth = 1;
@@ -1510,5 +1576,6 @@ let init() =
                         CustComponentOutPortsList = "[(out1, 1); (out2, 1)]"}
         DragBox=dragBoxInit
         DragWire=dragWireInit
+        CtrlPressed=false
 
     }, Cmd.map Wire cmds

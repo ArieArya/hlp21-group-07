@@ -7,13 +7,8 @@
     open Fable.React
     open Fable.React.Props
     open Browser
-    
     open Helpers
     open Electron
-    
-  
-    
-    
     open Sheet
 
     
@@ -45,13 +40,8 @@
             invisibleMenu.submenu <-
                 [| makeKeyItem "Default" "CmdOrCtrl+S" (fun () -> dispatch KeyboardMsg.CtrlS)
                    makeKeyItem "Blue" "Alt+C" (fun () -> dispatch KeyboardMsg.AltC)
-                   // makeKeyItem "Green" "Alt+V" (fun () -> dispatch KeyboardMsg.AltV)
-                   makeKeyItem "Default"  "delete" (fun () -> dispatch KeyboardMsg.DEL)
+                   makeKeyItem "Green" "Alt+V" (fun () -> dispatch KeyboardMsg.AltV)
                    makeKeyItem "Red" "Alt+Z" (fun () -> dispatch KeyboardMsg.AltZ)
-                   menuSeparator
-
-                   // ADD NEW SYMBOL TEMPORARY
-                   makeKeyItem "Add New Symbol" "Alt+V" (fun () -> dispatch KeyboardMsg.AltV)
 
                    menuSeparator
                    makeKeyItem "Print Statistics" "Alt+Shift+Z" (fun () -> dispatch KeyboardMsg.AltShiftZ)
@@ -77,7 +67,7 @@
     let view'  = recordExecutionTimeStats "View" Sheet.view
     let printMsg (msg:Msg) =
         match msg with
-        | Wire (BusWire.Msg.MouseMsg busWireMouseMsg) -> sprintf "BusWireMsg:%A" busWireMouseMsg.Op
+        | Wire (BusWire.Msg.MouseMsg (busWireMouseMsg, false)) -> sprintf "BusWireMsg:%A" busWireMouseMsg.Op
         | KeyPress key -> sprintf "%A" key
         | Wire (BusWire.Msg.Symbol (Symbol.Msg.MouseMsg symMouseMsg)) -> sprintf "SymbolMsg:%A"  symMouseMsg.Op
         | x -> sprintf "Other:%A" x
