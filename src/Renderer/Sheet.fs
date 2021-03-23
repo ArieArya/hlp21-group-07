@@ -74,7 +74,8 @@ type DragWireType = {
 
 type Model = {
     Wire: BusWire.Model
-    PastWireModels: BusWire.Model list
+    UndoWireModels: BusWire.Model list
+    RedoWireModels: BusWire.Model list
     ComponentInfo: CompInfo
     DragBox: DragBoxType
     DragWire: DragWireType
@@ -87,7 +88,7 @@ type Model = {
 //------------------------------------------------------------------------//
 
 type KeyboardMsg =
-    | CtrlS | AltC | AltV | AltZ | AltShiftZ | DEL | CtrlA | CtrlC | CtrlV | CtrlZ
+    | CtrlS | AltC | AltV | AltZ | AltShiftZ | DEL | CtrlA | CtrlC | CtrlV | CtrlZ | CtrlY
 
 type KeyOp = 
     | KeyDown | KeyUp
@@ -261,6 +262,7 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
         | "c", KeyDown, true | "C", KeyDown, true -> dispatch (KeyPress CtrlC)
         | "v", KeyDown, true | "V", KeyDown, true -> dispatch (KeyPress CtrlV)
         | "z", KeyDown, true | "Z", KeyDown, true -> dispatch (KeyPress CtrlZ)
+        | "y", KeyDown, true | "Y", KeyDown, true -> dispatch (KeyPress CtrlY)
         | _ -> ()
 
     // define the dragBox - the box in which users can select multiple symbols
@@ -1143,10 +1145,66 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                 ]
                             ] [str "Example: [(port1, 2); (port2, 3)]"]
                           ]
-
                       ]
-  
+                      div [ Style [Width "100%"; Float FloatOptions.Left; PaddingTop "3vh"]]  [
+                          div [ Style [PaddingTop "0.5vh"]][
+                            text [ 
+                                Style [
+                                    TextAnchor "middle" 
+                                    DominantBaseline "middle" 
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" 
+                                ]
+                            ] [str "Ctrl+C -> Copy"]
+                          ]
+                          div [ Style [PaddingTop "0.5vh"]][
+                            text [ 
+                                Style [
+                                    TextAnchor "middle" 
+                                    DominantBaseline "middle" 
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" 
+                                ]
+                            ] [str "Ctrl+V -> Paste"]
+                          ]
+                          div [ Style [PaddingTop "0.5vh"]][
+                            text [ 
+                                Style [
+                                    TextAnchor "middle" 
+                                    DominantBaseline "middle" 
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" 
+                                ]
+                            ] [str "Ctrl+A -> Select All"]
+                          ]
+                          div [ Style [PaddingTop "0.5vh"]][
+                            text [ 
+                                Style [
+                                    TextAnchor "middle" 
+                                    DominantBaseline "middle" 
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" 
+                                ]
+                            ] [str "Ctrl+Z -> Undo"]
+                          ]
+                          div [ Style [PaddingTop "0.5vh"]][
+                            text [ 
+                                Style [
+                                    TextAnchor "middle" 
+                                    DominantBaseline "middle" 
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" 
+                                ]
+                            ] [str "Ctrl+Y -> Redo"]
+                          ]
+                      ]
                   ]
+
             ]
             // ------------------------------ END OF DEMO INTERFACE --------------------------------------
         ]
@@ -1180,7 +1238,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         // return updated model
         let newModel, newCmd = Symbol.update (Symbol.Msg.AddSymbol (compType, pos, compName)) model.Wire.Symbol
-        {model with Wire = {model.Wire with Symbol = newModel}; PastWireModels=(storePastWireData model.Wire model.PastWireModels)}, newCmd
+        {model with Wire = {model.Wire with Symbol = newModel}; UndoWireModels=(storePastWireData model.Wire model.UndoWireModels); RedoWireModels=[]}, newCmd
 
     // sets color for model
     | KeyPress s -> 
@@ -1198,20 +1256,28 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         // paste
         | CtrlV -> 
             let newWires, _ = BusWire.update (BusWire.Msg.PasteWires) model.Wire
-            {model with Wire = newWires; PastWireModels=(storePastWireData model.Wire model.PastWireModels)}, Cmd.none
+            {model with Wire = newWires; UndoWireModels=(storePastWireData model.Wire model.UndoWireModels); RedoWireModels=[]}, Cmd.none
 
         // undo
         | CtrlZ ->
-            match model.PastWireModels with 
+            match model.UndoWireModels with 
             | (hd::tl) ->
-                {model with Wire=hd; PastWireModels=tl}, Cmd.none
+                {model with Wire=hd; UndoWireModels=tl; RedoWireModels=(storePastWireData model.Wire model.RedoWireModels)}, Cmd.none
 
+            | [] -> model, Cmd.none
+        
+        // redo
+        | CtrlY ->
+            match model.RedoWireModels with 
+            | (hd::tl) ->
+                {model with Wire=hd; RedoWireModels=tl; UndoWireModels=(storePastWireData model.Wire model.UndoWireModels)}, Cmd.none
+            
             | [] -> model, Cmd.none
 
         // delete
         | DEL ->
             let newModel, _ = BusWire.update (BusWire.Msg.DeleteWiresBySymbol) model.Wire
-            {model with Wire = newModel; PastWireModels=(storePastWireData model.Wire model.PastWireModels)}, Cmd.none
+            {model with Wire = newModel; UndoWireModels=(storePastWireData model.Wire model.UndoWireModels); RedoWireModels=[]}, Cmd.none
 
         // print stats
         | AltShiftZ -> 
@@ -1257,7 +1323,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             match selectedPort, isAnythingDragging with
             | _, true -> 
                 let updatedWire, _ = BusWire.update (BusWire.Msg.MouseMsg (mMsg, model.CtrlPressed)) model.Wire
-                {model with Wire=updatedWire; PastWireModels=(storePastWireData model.Wire model.PastWireModels)}, Cmd.none
+                {model with Wire=updatedWire; UndoWireModels=(storePastWireData model.Wire model.UndoWireModels); RedoWireModels=[]}, Cmd.none
 
             | None, false ->
                 // initialize DragBox and DragWire
@@ -1300,7 +1366,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         |> Symbol.update (Symbol.Msg.ExpandPort (port.PortType, wire.SrcPort.Width))
                         |> fst
 
-                    {model with Wire={model.Wire with WX=updatedWire.WX; Symbol=newSymbol}; DragBox=newDragBox; DragWire=newDragWire; PastWireModels=(storePastWireData model.Wire model.PastWireModels)}, Cmd.none
+                    {model with Wire={model.Wire with WX=updatedWire.WX; Symbol=newSymbol}; DragBox=newDragBox; DragWire=newDragWire; UndoWireModels=(storePastWireData model.Wire model.UndoWireModels); RedoWireModels=[]}, Cmd.none
                 
                 // if no wire exists, visualize a new one
                 | None -> 
@@ -1318,7 +1384,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         |> fst
                     
                     // returns updated model
-                    {model with Wire={model.Wire with Symbol=newSymbol}; DragBox=newDragBox; DragWire=newDragWire; PastWireModels=(storePastWireData model.Wire model.PastWireModels)}, Cmd.none
+                    {model with Wire={model.Wire with Symbol=newSymbol}; DragBox=newDragBox; DragWire=newDragWire; UndoWireModels=(storePastWireData model.Wire model.UndoWireModels); RedoWireModels=[]}, Cmd.none
                     
         // mouse up
         | Up ->
@@ -1567,7 +1633,8 @@ let init() =
 
     {
         Wire = model
-        PastWireModels = []
+        UndoWireModels = []
+        RedoWireModels = []
         // initialize user-defined values
         ComponentInfo = {InputWidth = 1; OutputWidth = 1; BusSelectionOutWidth = 2; BusSelectionLSB = 0; ConstantValue = 1; ConstantWidth = 1;
                         AsyncROMMemBits = 1; AsyncROMOutWidth = 1; ROMMemBits = 1; ROMOutWidth = 1; RAMMemBits = 1; RAMOutWidth = 1;
