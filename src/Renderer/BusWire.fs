@@ -122,11 +122,20 @@ let renderWire = // Return wire svg
                 if props.ShowLegend 
                 then makeWireAnnotation (props.Points) (props.Width) (props.ColorP)
                 else []
+            let thePath = 
+                [path [
+                    // X1 150.
+                    // Y1 150.
+                    // X2 200.
+                    // Y2 200.
+                    D "M300,200 h-150 a150,150 0 1,0 150,-150 z"
+                    SVGAttr.Stroke "red"
+                    SVGAttr.StrokeWidth (sprintf "%ipx" 2)  ] []]
             let nonLinearWidth = getNonLinearWidth (props.Width)
             props.Points 
             |> List.pairwise //now we have points as pairs
             |> List.map (makeSVGLine (props.ColorP) nonLinearWidth)
-            |> fun svgline -> g [] (List.append svgline wireAnnotation)    
+            |> fun svgline -> g [] (List.append svgline (List.append wireAnnotation thePath))   
             )   
 
 let requiresThreeLines srcPortPos tgtPortPos = // helper to determine whether target port is left of source port
