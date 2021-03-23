@@ -1285,20 +1285,20 @@ let findNextAvailablePos (symModel: Model) (dimensions: float * float) =
 
         // if there is an overlapping, return false (i.e. position not available), otherwise true
         match overlappedSymbol with 
-        | Some x -> false
+        | Some _ -> false
         | None -> true
     
     // finds next available position in the canvas
     let nextAvailablePos = 
         let listX = 
-            [5..35]
+            [5..37]
             |> List.collect (fun x -> 
                                 if x % 2 = 1 then [float(x * 30)]
                                 else []
                                 )
        
         let listY = 
-            [5..120]
+            [5..240]
             |> List.collect (fun y -> 
                                 if y % 2 = 1 then [float(y * 30)]
                                 else []
