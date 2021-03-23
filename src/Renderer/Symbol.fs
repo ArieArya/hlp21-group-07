@@ -90,40 +90,25 @@ let posAdd a b =
 /// Converts x and y integers to XYPos
 let posOf x y = {X=x;Y=y}
 
-/// Calculates the input port position for a symbol
-let posOfInput (vertices: XYPos list) (index: int) (numInputs: int) = 
+let portPos 
+    (inOrOut: CommonTypes.PortType) 
+    (vertices: XYPos list)
+    (numberOfPorts: int) (portNumber: int): XYPos =
     let v1 = vertices.[0]
-    let v4 = vertices.[3]
-
-    let curX = v1.X
-    let curY = 
-        (float(index) / float(numInputs + 1)) * (v4.Y - v1.Y) + v1.Y
-
-    {X = curX; Y=curY}
-
-/// Calculates the output port position for a symbol
-let posOfOutput (vertices: XYPos list) (index: int) (numInputs: int) = 
     let v2 = vertices.[1]
     let v3 = vertices.[2]
 
-    let curX = v2.X
+    let curX = 
+            if (inOrOut = CommonTypes.PortType.Input) then 
+                v1.X
+            else
+                v2.X
     let curY = 
-        (float(index) / float(numInputs + 1)) * (v3.Y - v2.Y) + v2.Y
-
-    {X = curX; Y=curY}
-
-/// Calculates port position
-let portPos 
-    (inOrOut: CommonTypes.PortType) 
-    (pos: XYPos) (h: int) (w:int) 
-    (numberOfPorts: int) (portNumber: int): XYPos =
+        (float(portNumber) / float(numberOfPorts + 1)) * (v3.Y - v2.Y) + v2.Y
     {
-            X = if (inOrOut = CommonTypes.PortType.Input) then 
-                    pos.X - (float w/2.)
-                else
-                    pos.X + (float w/2.)
-            Y = pos.Y - (float h/2.) + (float (h/(numberOfPorts + 1) * (portNumber+1)))
-    }   
+            X = curX
+            Y = curY
+    }  
 
 /// Calculates vertices position
 let calcVertices (pos: XYPos) (h: int) (w: int) : XYPos List =
@@ -247,42 +232,17 @@ let checkIfSymbolsOverlap (symModel: Model) (sym1: Symbol) : bool =
 
 // obtains the string from the component id
 let unwrapCompId (CommonTypes.ComponentId x) = x
-//------------------------------------------------------------------------//
+
+//--------------------------------------------------------------------//
 //---------------------Skeleton Message type for symbols------------------//
 //------------------------------------------------------------------------//
-
-// /// Creates New Input Port
-// let createNewInputPort 
-//     (portNumber: int) (pos: XYPos) (hostId: CommonTypes.ComponentId) 
-//     (portWidth: int option) : CommonTypes.Port = 
-//     {
-//         Id = (Helpers.uuid()) 
-//         PortType = CommonTypes.PortType.Input
-//         PortNumber = Some portNumber
-//         HostId = hostId
-//         Pos = pos
-//         Width = portWidth
-//     }
-
-// /// Creates New Output Port
-// let createNewOutputPort 
-//     (portNumber: int) (pos: XYPos) (hostId: CommonTypes.ComponentId) 
-//     (portWidth: int option) : CommonTypes.Port = 
-//     {
-//         Id = (Helpers.uuid()) 
-//         PortType = CommonTypes.PortType.Output
-//         PortNumber = Some portNumber
-//         HostId = hostId
-//         Pos = pos
-//         Width = portWidth
-//     }
 
 /// Template for new Ports
 let newPortTemplate 
     (inOrOut: CommonTypes.PortType) 
     (hostId: CommonTypes.ComponentId) 
     (portNumber: int) (busWidth: int option) 
-    (pos: XYPos) (h:int) (w:int)
+    (vertices: XYPos List)
     (numberOfPorts: int): CommonTypes.Port =
     
     {
@@ -292,7 +252,7 @@ let newPortTemplate
         PortNumber = Some portNumber
         PortType = inOrOut
         HostId = hostId
-        Pos = portPos inOrOut pos h w numberOfPorts portNumber
+        Pos = portPos inOrOut vertices numberOfPorts portNumber
         Width = busWidth //new field used to add bus width of ports
     }
 
@@ -317,6 +277,8 @@ let newSymbolTemplate
             (sprintf "(%d:%d)" ((outWidth - 1) + outLSBit) (outLSBit))
         | _ -> getNextLabel compType symNumber
 
+    let vertices = calcVertices pos h w
+
     {
         Pos = pos
         LastDragPos = {X=0. ; Y=0.} // initial value can always be this
@@ -334,16 +296,16 @@ let newSymbolTemplate
                 (newPortTemplate 
                     CommonTypes.PortType.Input 
                     id
-                    x inputPortWidthList.[x] pos h w numberOfInputs))
+                    (x+1) inputPortWidthList.[x] vertices numberOfInputs))
         OutputPorts = 
             [0..(outputPortWidthList.Length-1)]
             |> List.map (fun x -> 
                 (newPortTemplate 
                     CommonTypes.PortType.Output 
                     id
-                    x outputPortWidthList.[x] pos h w numberOfOutputs))
+                    (x+1) outputPortWidthList.[x] vertices numberOfOutputs))
         ExpandedPort = (None, None)
-        Vertices = calcVertices pos h w
+        Vertices = vertices
         SymbolNumber = symNumber
         H = h
         W = w
@@ -474,13 +436,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                 let newInputPorts = 
                     sym.InputPorts
                     |> List.mapi (fun i inpPort -> 
-                        {inpPort with Pos = posOfInput curVertices (i+1) inputPortLength})
+                        {inpPort with Pos = portPos CommonTypes.PortType.Input curVertices inputPortLength (i+1)})
 
                 // obtains new position of the output ports
                 let newOutputPorts = 
                     sym.OutputPorts
                     |> List.mapi (fun i outPort -> 
-                        {outPort with Pos = posOfOutput curVertices (i+1) outputPortLength})
+                        {outPort with Pos = portPos CommonTypes.PortType.Output curVertices outputPortLength (i+1)})
 
                 // update symbol with new positions and vertices
                 { sym with
@@ -539,13 +501,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                 let newInputPorts = 
                     sym.InputPorts
                     |> List.mapi (fun i inpPort -> 
-                        {inpPort with Pos = posOfInput curVertices (i+1) inputPortLength})
+                        {inpPort with Pos = portPos CommonTypes.PortType.Input curVertices inputPortLength (i+1)})
 
                 // obtains new position of the output ports
                 let newOutputPorts = 
                     sym.OutputPorts
                     |> List.mapi (fun i outPort -> 
-                        {outPort with Pos = posOfOutput curVertices (i+1) outputPortLength})
+                        {outPort with Pos = portPos CommonTypes.PortType.Output curVertices outputPortLength (i+1)})
 
                 { sym with
                     Pos = curPos
@@ -554,7 +516,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                     LastDragPos = curPos
                     Vertices = curVertices
                     IsDragging = false
-                }
+                }                           
 
         ), Cmd.none
 
@@ -589,20 +551,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
     // Mark all symbols that are being hovered by mouse at pos as IsHovered = true
     | SymbolHovering pos ->
-        // model
-        // |> List.map (fun sym -> 
-        //                 let vertices = sym.Vertices
-
-        //                 // assume square vertices
-        //                 let v1 = vertices.[0]
-        //                 let v2 = vertices.[1]
-        //                 let v3 = vertices.[2]
-
-        //                 // perform calculation on bounding box
-        //                 if pos.X >= v1.X && pos.X <= v2.X && pos.Y >= v2.Y && pos.Y <= v3.Y
-        //                 then {sym with IsHovered=true}
-        //                 else {sym with IsHovered=false}
-        //             ), Cmd.none  
         model
         |> List.map (fun sym ->
             if (posInSymbol sym pos) then // checks if the position is in the symbol
@@ -699,14 +647,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
         model
         |> List.map (fun sym ->
-                        if isCtrlPressed && (isSymbolClicked sym) then 
-                            if sym.IsSelected then 
-                                {sym with IsSelected=false}
-                            else 
-                                {sym with IsSelected=true}
-                        else 
-                            sym
-                        ), Cmd.none
+            if isCtrlPressed && (isSymbolClicked sym) then 
+                if sym.IsSelected then 
+                    {sym with IsSelected=false}
+                else 
+                    {sym with IsSelected=true}
+            else 
+                sym
+            ), Cmd.none
 
 
     | ClearOriginCopiedId ->
