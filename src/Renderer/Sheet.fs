@@ -100,7 +100,15 @@ type Msg =
     | MouseMsg of MouseT
     | CtrlKeyPress of KeyOp
 
-    // This section is for handling user-defined parameters for Interface (replacing ISSIE)
+    /// **********************************************************************************************
+    ///                                          NOTE:
+    /// 
+    ///     The messages below are to obtain user-defined input for the user interface in the demo 
+    ///     to replace the ISSIE interface. The Draw2D implementation does not require the messages 
+    ///     defined below
+    /// 
+    /// **********************************************************************************************
+
     // for input and output
     | ChangeInputWidth of int
     | ChangeOutputWidth of int
@@ -212,7 +220,6 @@ let convertPoly inpList =
                                 elif c = ';' then " "
                                 elif c = ' ' then ""
                                 else string c)
-
 
 /// Stores past wire models to memory
 let storePastWireData (wireModel: BusWire.Model) (pastModelList: BusWire.Model list) = 
@@ -340,7 +347,15 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                 
             ]
 
-          // ----------------------- FOR DEMO INTERFACE (NO DRAW2DCANVAS IMPLEMENTATION HERE) ------------------------------
+          /// *************************************************************************************************************************************
+          ///                                                                  NOTE:
+          ///
+          ///                       The section below is for user-interface purposes only and not part of the Draw2D canvas
+          ///                       implementation. This section draws the RHS column with user-defined inputs and module 
+          ///                       selection of all components in ISSIE. Please skip to line 1225 to skip the interface display
+          ///
+          /// *************************************************************************************************************************************
+          
           // draws the right-side menu column (for demo purposes only - i.e. to input different symbols)
           div [ rightColumn ][
               
@@ -1206,7 +1221,15 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                   ]
 
             ]
-            // ------------------------------ END OF DEMO INTERFACE --------------------------------------
+
+            /// ***************************************************************************************************************************
+            ///                                                             NOTE:
+            /// 
+            ///                     This marks the end of the RHS column interface for demo-purposes only. The following 
+            ///                     code that follows are related to the Draw2D implementation.
+            ///
+            /// ***************************************************************************************************************************
+
         ]
         
 
@@ -1241,20 +1264,20 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         {model with Wire = {model.Wire with Symbol = newModel}; UndoWireModels=(storePastWireData model.Wire model.UndoWireModels); RedoWireModels=[]}, newCmd
 
-    // sets color for model
+    // detects key presses from users
     | KeyPress s -> 
         match s with
-        // select all
+        // select all symbols
         | CtrlA ->
             let newWires, _ = BusWire.update (BusWire.Msg.SelectAll) model.Wire
             {model with Wire=newWires}, Cmd.none
 
-        // copy
+        // copy symbols & wires
         | CtrlC -> 
             let newWires, _ = BusWire.update (BusWire.Msg.CopyWires) model.Wire
             {model with Wire = newWires}, Cmd.none
 
-        // paste
+        // paste symbols & wires
         | CtrlV -> 
             let newWires, _ = BusWire.update (BusWire.Msg.PasteWires) model.Wire
             {model with Wire = newWires; UndoWireModels=(storePastWireData model.Wire model.UndoWireModels); RedoWireModels=[]}, Cmd.none
@@ -1275,7 +1298,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             
             | [] -> model, Cmd.none
 
-        // delete
+        // delete all selected symbols & wires
         | DEL ->
             let newModel, _ = BusWire.update (BusWire.Msg.DeleteWiresBySymbol) model.Wire
             {model with Wire = newModel; UndoWireModels=(storePastWireData model.Wire model.UndoWireModels); RedoWireModels=[]}, Cmd.none
@@ -1285,16 +1308,17 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             printStats() 
             model, Cmd.none
         
+        // ignore all other key presses
         | _ ->
             model, Cmd.none
     
+    // determines whether ctrl is currently being pressed
     | CtrlKeyPress op ->
         match op with 
         | KeyUp ->  
             {model with CtrlPressed = false}, Cmd.none
         | KeyDown ->
             {model with CtrlPressed = true}, Cmd.none
-
 
     // handles mouse operations
     | MouseMsg mMsg ->
@@ -1415,7 +1439,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             | None ->
                 {model with Wire=updatedWire; DragBox=resetDragBox; DragWire=resetDragWire}, Cmd.none
             
-            // if port selected, add new wire between two ports if wire was dragging
+            // if port selected, add new wire between two ports
             | Some port ->
                 match model.DragWire.isDragging with
                 | false -> {model with Wire=updatedWire; DragBox=resetDragBox}, Cmd.none
@@ -1466,10 +1490,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
                         | Some (targetPort, srcPort), true ->
                             match targetPort.Width, srcPort.Width with
+                            // if both ports have a fixed width, add wire between the ports
                             | Some a, Some b ->
                                 let newWire, _ = BusWire.update (BusWire.Msg.AddWire (srcPort, targetPort)) (updatedWire)
                                 {model with Wire=newWire; DragBox=resetDragBox}, Cmd.none
 
+                            // if one port has variable port widths, perform width inference
                             | Some a, None ->
                                 let newSymModel, isValid = Symbol.portInference updatedWire.Symbol srcPort a
                                 if isValid then
@@ -1481,6 +1507,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                 else 
                                     model, Cmd.none
 
+                            // if one port has variable port widths, perform width inference
                             | None, Some a ->
                                 let newSymModel, isValid = Symbol.portInference updatedWire.Symbol targetPort a
                                 if isValid then
@@ -1559,7 +1586,18 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             // return updated model
             {model with Wire={model.Wire with WX=newWX; Symbol=newSymbol}; DragBox=resetDragBox; DragWire=resetDragWire}, Cmd.none
 
-    // ------------------------- This section performs parameter update based on user inputs ----------------------
+
+    /// **********************************************************************************************************************
+    ///                                                       NOTE:
+    /// 
+    ///                  The messages below are NOT part of the Draw2D canvas implementation. It is used to take
+    ///                  user-defined input parameters (e.g. port widths, custom component labels, etc.) for demo
+    ///                  purposes only. This is used to replace the ISSIE interface for the demo (to allow user-
+    ///                  defined modules).
+    ///
+    /// **********************************************************************************************************************
+    
+
     // for Input and Output
     | ChangeInputWidth width ->
         {model with ComponentInfo = {model.ComponentInfo with InputWidth = width}}, Cmd.none
