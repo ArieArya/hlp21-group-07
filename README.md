@@ -64,11 +64,7 @@ Multiple symbols can be selected, dragged, and deleted, simultaneously. This fea
   <img src="/img/multi-symbol.gif" width="60%">
 </p>
 
-### 8. Automatic & Manual Wire Routing
-Both automatic and manual wire routing is allowed in the canvas. When dragging symbols around, wires will automatically be re-routed. However, once placed, users are free to manually re-route the wires. An important feature is that the program remembers which wire segment was modified by the user and ensures that when symbols are moved, that segment stays the same. This is demonstrated below:
-<p align="center">
-  <img src="/img/wire-routing.gif" width="60%">
-</p>
+
 
 ### 9. Select All (Ctrl+A) and Multiple select by Ctrl+Clicking
 By clicking Ctrl+A, users are able to select all symbols and wires in the canvas. Additionally, by holding Ctrl and clicking symbols or wires, users are able to select individual symbols or wires. This is demonstrated below:
@@ -100,6 +96,18 @@ Ports in symbols are only shown when the symbol is hovered, otherwise it remains
   <img src="/img/hovering.gif" width="60%">
 </p>
 
+### 8. Automatic Wire Routing
+Wire routes into either three or five segment shape depending on where input and output ports are - automatically re-routing when ports change positions.
+
+<p align="center">
+  <img src="/img/wire-routing.gif" width="60%">
+</p>
+### 8. Manual Wire Routing
+Wires can also be manually adjusted by the user. If a user modifies a particular segment, the program remembers which segment was modified and attempts to keep that segment in place when symbols change position:
+
+<p align="center">
+  <img src="/img/wire-routing.gif" width="60%">
+</p>
 ### 14. Symbol avoidance for buswire
 When automatic routing, wires attempt to avoid symbols. This is especially important for feedback loops where we need to avoid the current symbol.
 <p align="center">
@@ -113,6 +121,11 @@ When automatic routing, wires attempt to avoid symbols. This is especially impor
 
 ### 16. Buswire dragging two symbols wire retains shape
 When dragging both symbols of a wire, the wire retains its shape completeley
+<p align="center">
+  <img src="/img/hovering.gif" width="60%">
+</p>
+### 17. Toggle legend
+Wire annotations can be toggled on or off by the user
 <p align="center">
   <img src="/img/hovering.gif" width="60%">
 </p>
