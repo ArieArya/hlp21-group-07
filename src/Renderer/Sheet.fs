@@ -13,10 +13,19 @@ open CatalogueView
 open PropertiesView
 
 
+//------------------------------------------------------------------------//
+//-------------------------------Symbol Types-----------------------------//
+//------------------------------------------------------------------------//
+
+
+// *************** Please see Model.fs for the Sheet model ***************//
+
+
 
 //------------------------------------------------------------------------//
 //---------------------------Helper Functions-----------------------------//
 //------------------------------------------------------------------------//
+
 // obtains the right-side menu to obtain user inputs (e.g. symbol type, name
 // of components, number of input and output ports, port width, etc.)
 let rightColumnStyle = 
@@ -210,11 +219,10 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                             button [
                                 Style [
                                     Height "4vh"
-                                    Width "21vh"
+                                    Width "50%"
                                     TextAnchor "middle" // horizontal algnment vs (X,Y)
                                     DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                    FontSize "2.2vh"
-                                    FontWeight "Bold"
+                                    FontSize "1.8vh"
                                     Fill "Gray" // font color
                                 ]
                                 OnClick (fun _ -> dispatch (ChangeRightTab Catalogue))
@@ -222,11 +230,10 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                             button [
                                 Style [
                                     Height "4vh"
-                                    Width "21vh"
+                                    Width "50%"
                                     TextAnchor "middle" // horizontal algnment vs (X,Y)
                                     DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                    FontSize "2.2vh"
-                                    FontWeight "Bold"
+                                    FontSize "1.8vh"
                                     Fill "Gray" // font color
                                 ]
                                 OnClick (fun _ -> dispatch (ChangeRightTab Properties))
@@ -621,6 +628,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             
         {model with Wire = newModel; UndoWireModels=(storePastWireData model.Wire model.UndoWireModels); RedoWireModels=[]}, Cmd.none
 
+
     /// **********************************************************************************************************************
     ///                                                       NOTE:
     /// 
@@ -631,7 +639,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     ///
     /// **********************************************************************************************************************
     
-
     // for Input and Output
     | ChangeInputWidth width ->
         {model with ComponentInfo = {model.ComponentInfo with InputWidth = width}}, Cmd.none
