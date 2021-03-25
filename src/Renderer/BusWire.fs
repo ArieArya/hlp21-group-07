@@ -83,8 +83,28 @@ type LineRenderProps = {
     ColorP: string
     StrokeWidthP: string 
     }
+let mag x = 
+    if x < 0.
+    then -x 
+    else x
+let returnSign x = 
+    match x with 
+    | _ when x>0. -> 10.
+    | _ when x<0. -> -10.
+    | _ -> x 
+let shortenPoints (startP, endP) = 
+    printfn "STARTP IS %A. ENDP IS %A" startP endP
+    match 1 with 
+    | _ when mag (startP.X-endP.X) <= mag (startP.Y-endP.Y) -> 
+        let yDiff = returnSign (endP.Y - startP.Y)
+        ({startP with Y=startP.Y+yDiff}, {endP with Y=endP.Y-yDiff})
+    | _ when mag (startP.X-endP.X) >= mag (startP.Y-endP.Y) -> 
+        let xDiff = returnSign (endP.X - startP.X)
+        ({startP with X=startP.X+xDiff}, {endP with X=endP.X-xDiff})
+    | _ -> failwithf "LINE MUST BE DIAGONAL CUNT"
 
 let makeSVGLine color width (startP, endP) = 
+    //we basically need to shorten the line accross the direction it's going
     line [
                 X1 startP.X
                 Y1 startP.Y
@@ -118,6 +138,34 @@ let makeWireAnnotation (wirePoints: XYPos list) (width: int) col = // Create wid
 let getNonLinearWidth width = 
     5-(25/(width+7))
 
+//what if we do pairwise twice 
+let trios lst = 
+    lst 
+    |> List.pairwise //[1;2;3;4;5] -> [(1,2);(2,3);(3,4);(4,5)]
+    |> List.pairwise //[((1,2),(2,3)); ((2,3),(3,4)); ((3,4),(4,5))]
+    |> List.map (fun ((a,b), (c,d)) -> (a,b,d)) // [(1,2,3); (2,3,4); (3,4,5)]
+
+
+let createControlPoint otherPoint currentPoint =
+    let xDiff = otherPoint.X - currentPoint.X 
+    let yDiff = otherPoint.Y - currentPoint.Y 
+    {X=currentPoint.X + returnSign xDiff; Y = currentPoint.Y + returnSign yDiff}
+
+let createCurves points colour width = //we basically need to get it into a list of trios
+    points 
+    |> trios
+    |> List.map 
+        (fun (oldPoint,currentPoint,nextPoint) -> 
+        //we now just map into start and end points
+        //do that by basically adding the sign of the difference to currentPoint
+            let startP = createControlPoint oldPoint currentPoint 
+            let endP = createControlPoint nextPoint currentPoint 
+            path [
+                D (sprintf "M%f,%f C %f %f, %f %f, %f %f" (startP.X) (startP.Y) (currentPoint.X) (currentPoint.Y) (currentPoint.X) (currentPoint.Y) (endP.X) (endP.Y))
+                SVGAttr.Stroke colour
+                SVGAttr.Fill "none"
+                SVGAttr.StrokeWidth (sprintf "%ipx" width)  ] [])
+
 let renderWire = // Return wire svg
     FunctionComponent.Of(
         fun (props: WireRenderProps) ->
@@ -126,10 +174,18 @@ let renderWire = // Return wire svg
                 then makeWireAnnotation (props.Points) (props.Width) (props.ColorP)
                 else []
             let nonLinearWidth = getNonLinearWidth (props.Width)
+            let thePath = createCurves (props.Points) (props.ColorP) nonLinearWidth
+            let pLen = List.length (props.Points) - 2
+            printfn "DA LENGTH IS %A" pLen
             props.Points 
             |> List.pairwise //now we have points as pairs
+            |> List.mapi (fun i ps -> 
+                match i with 
+                | 0 -> (fst ps, snd (shortenPoints ps))
+                | pLen -> (fst (shortenPoints ps), snd ps) 
+                | _ -> shortenPoints ps)
             |> List.map (makeSVGLine (props.ColorP) nonLinearWidth)
-            |> fun svgline -> g [] (List.append svgline wireAnnotation)    
+            |> fun svgline -> g [] (List.append svgline (List.append wireAnnotation thePath))   
             )   
 
 let requiresThreeLines srcPortPos tgtPortPos = // helper to determine whether target port is left of source port
