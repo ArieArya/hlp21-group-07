@@ -41,8 +41,10 @@
             invisibleMenu.submenu <-
                 [| makeKeyItem "Default" "CmdOrCtrl+S" (fun () -> dispatch KeyboardMsg.CtrlS)
                    makeKeyItem "Blue" "Alt+C" (fun () -> dispatch KeyboardMsg.AltC)
-                   makeKeyItem "Green" "Alt+V" (fun () -> dispatch KeyboardMsg.AltV)
                    makeKeyItem "Red" "Alt+Z" (fun () -> dispatch KeyboardMsg.AltZ)
+
+                   menuSeparator
+                   makeKeyItem "Toggle Legend" "Alt+V" (fun () -> dispatch KeyboardMsg.AltV)
 
                    menuSeparator
                    makeKeyItem "Print Statistics" "Alt+Shift+Z" (fun () -> dispatch KeyboardMsg.AltShiftZ)

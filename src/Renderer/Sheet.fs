@@ -262,6 +262,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         | AltShiftZ -> 
             printStats() 
             model, Cmd.none
+
+        // togle buswidth legend
+        | AltV ->
+            let newModel, _ = BusWire.update (BusWire.Msg.ToggleLegend) model.Wire
+            {model with Wire = newModel}, Cmd.none
         
         // ignore all other key presses
         | _ ->
