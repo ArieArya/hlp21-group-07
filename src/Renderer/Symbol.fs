@@ -713,12 +713,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                             |> function 
                                 | Some x -> true
                                 | None -> false
-                        
+
+                        //store the current value of error highlight bool for the port
+                        let firstErrorHighlight = port.ErrorHighlight
+
                         //if the port is not in the connected port list then set the errorhighlight to true
                         if (checkIfInPortList) then                          
                             port
                         else
-                            {port with ErrorHighlight = true}
+                            {port with ErrorHighlight = not firstErrorHighlight}
                     )
             // update all input ports in symbol to be error highlighted if in unconnected port list
             let updatedInputPorts = 
