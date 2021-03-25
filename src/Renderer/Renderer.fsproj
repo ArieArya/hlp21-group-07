@@ -11,12 +11,18 @@
   </ItemGroup>
   <ItemGroup>
     <!-- JS and File interface -->
-    <!-- Draw2D diagram -->
     <!-- UI -->
     <Compile Include="Helpers.fs" />
     <Compile Include="CommonTypes.fs" />
     <Compile Include="Symbol.fs" />
     <Compile Include="BusWire.fs" />
+
+    <!-- Model -->
+    <Compile Include="Model.fs" />
+
+    <!-- Right Column -->
+    <Compile Include="RightCol/CatalogueView.fs" />
+
     <Compile Include="Sheet.fs" />
     <Compile Include="Renderer.fs" />
   </ItemGroup>

@@ -7,6 +7,7 @@
     open Fable.React
     open Fable.React.Props
     open Browser
+    open Model
     open Helpers
     open Electron
     open Sheet
