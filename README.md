@@ -64,55 +64,71 @@ Multiple symbols can be selected, dragged, and deleted, simultaneously. This fea
   <img src="/img/multi-symbol.gif" width="60%">
 </p>
 
-### 8. Automatic & Manual Wire Routing
-Both automatic and manual wire routing is allowed in the canvas. When dragging symbols around, wires will automatically be re-routed. However, once placed, users are free to manually re-route the wires. An important feature is that the program remembers which wire segment was modified by the user and ensures that when symbols are moved, that segment stays the same. This is demonstrated below:
-<p align="center">
-  <img src="/img/wire-routing.gif" width="60%">
-</p>
 
-### 9. Select All (Ctrl+A) and Multiple select by Ctrl+Clicking
+
+### 8. Select All (Ctrl+A) and Multiple select by Ctrl+Clicking
 By clicking Ctrl+A, users are able to select all symbols and wires in the canvas. Additionally, by holding Ctrl and clicking symbols or wires, users are able to select individual symbols or wires. This is demonstrated below:
 <p align="center">
   <img src="/img/ctrl-selecting.gif" width="60%">
 </p>
 
-### 10. Copy & Paste
+### 9. Copy & Paste
 Symbols and wires can be copy and pasted by clicking Ctrl+C and Ctrl+V respectively. This is shown below:
 <p align="center">
   <img src="/img/copy-paste.gif" width="60%">
 </p>
 
-### 11. Undo & Redo 
+### 10. Undo & Redo 
 The canvas will remember the past 20 actions you make (including adding symbols, moving symbols / wires, adding wires, etc.). Any actions you make in the canvas can be undone by pressing Ctrl+Z. Additionally, any undo's can itself be undone (i.e. redo) by clicking Ctrl+Y. This is demonstrated below:
 <p align="center">
   <img src="/img/undo-redo.gif" width="60%">
 </p>
 
-### 12. Highlighting Available Ports
+### 11. Highlighting Available Ports
 When dragging wires from symbols, all target ports in which connections are possible (i.e. same width) are highlighted in the canvas. Ports in which a connection is not possible will remain hidden. This gives an indicator to the user on which connections are possible and which are not. This feature is demonstrated below, where two input and output components can only connect to its counterpart with the same defined port-width:
 <p align="center">
   <img src="/img/highlight-ports.gif" width="60%">
 </p>
 
-### 13. Showing Ports when Hovering over Symbols
+### 12. Showing Ports when Hovering over Symbols
 Ports in symbols are only shown when the symbol is hovered, otherwise it remains hidden. This is identical to the interface in ISSIE, and is demonstrated below:
 <p align="center">
   <img src="/img/hovering.gif" width="60%">
 </p>
 
-### 14. Symbol avoidance for buswire
+### 13. Automatic Wire Routing
+Wire routes into either three or five segment shape depending on where input and output ports are - automatically re-routing when ports change positions.
+
+<p align="center">
+  <img src="/img/wire-auto-routing.gif" width="60%">
+</p>
+
+### 14. Manual Wire Routing
+Wires can also be manually adjusted by the user. If a user modifies a particular segment, the program remembers which segment was modified and attempts to keep that segment in place when symbols change position:
+
+<p align="center">
+  <img src="/img/wire-manual-routing.gif" width="60%">
+</p>
+
+### 15. Symbol avoidance for buswire
 When automatic routing, wires attempt to avoid symbols. This is especially important for feedback loops where we need to avoid the current symbol.
 <p align="center">
-  <img src="/img/hovering.gif" width="60%">
+  <img src="/img/symb-avoidance.gif" width="60%">
 </p>
 
-### 15. Curved Wires
+### 16. Curved Wires
 <p align="center">
-  <img src="/img/hovering.gif" width="60%">
+  <img src="/img/curved-wires.PNG" width="35%">
 </p>
 
-### 16. Buswire dragging two symbols wire retains shape
-When dragging both symbols of a wire, the wire retains its shape completeley
+### 17. Buswire dragging two symbols wire retains shape
+When dragging both symbols of a wire, the wire retains its shape completly
 <p align="center">
-  <img src="/img/hovering.gif" width="60%">
+  <img src="/img/retain-shape.gif" width="60%">
+</p>
+
+### 18. Toggle legend
+Wire annotations can be toggled on or off by the user
+<p align="center">
+  <img src="/img/toggle-legend.gif" width="60%">
 </p>
