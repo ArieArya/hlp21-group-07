@@ -40,7 +40,7 @@ Automatic width-inference of wires are directly implemented. This means symbols 
   <li>BusSelection</li>
   <li>IOLabel</li>
 </ul>
-A demonstration of width-inference is shown below with the module SplitWire with an upper LSB set to 2. Initially, the input has a width of 7, with the output correspondingly having a width of 5. These two symbols are then replaced with an input of width 5, and a corresponding output with width 3.
+A demonstration of width-inference is shown below with the module SplitWire with an upper LSB set to 2, a MergeWire, and a BusConnection of width 3 and starting bit 3. As can be seen, the widths obtained from each of the three symbols are inferred from its other variable port widths that have been defined.
 <p></p>
 <p align="center">
   <img src="/img/width-inference.gif" width="60%">
