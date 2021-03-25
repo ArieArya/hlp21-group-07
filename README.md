@@ -102,12 +102,14 @@ Wire routes into either three or five segment shape depending on where input and
 <p align="center">
   <img src="/img/wire-routing.gif" width="60%">
 </p>
+
 ### 8. Manual Wire Routing
 Wires can also be manually adjusted by the user. If a user modifies a particular segment, the program remembers which segment was modified and attempts to keep that segment in place when symbols change position:
 
 <p align="center">
   <img src="/img/wire-routing.gif" width="60%">
 </p>
+
 ### 14. Symbol avoidance for buswire
 When automatic routing, wires attempt to avoid symbols. This is especially important for feedback loops where we need to avoid the current symbol.
 <p align="center">
