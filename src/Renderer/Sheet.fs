@@ -10,13 +10,33 @@ open Model
 open Helpers
 open type CommonTypes.ComponentType
 open CatalogueView
+open PropertiesView
+
 
 
 //------------------------------------------------------------------------//
 //---------------------------Helper Functions-----------------------------//
 //------------------------------------------------------------------------//
-
-
+// obtains the right-side menu to obtain user inputs (e.g. symbol type, name
+// of components, number of input and output ports, port width, etc.)
+let rightColumnStyle = 
+    Style [
+        Position PositionOptions.Fixed
+        Right "0px"
+        Top "0px"
+        Height  "100vh"
+        Width "25%"
+        BorderLeft  "0.2vh solid lightgray"
+        BorderTop "0.2vh solid lightgray"
+        BorderBottom "0.2vh solid lightgray"
+        BorderRight "0.2vh solid lightgray"
+        Margin "0"
+        Padding "0"
+        UserSelect UserSelectOptions.None
+        ZIndex 31
+        BackgroundColor "#fcfcfc"
+        OverflowY OverflowOptions.Scroll
+    ]
 
 // obtain canvas height and width from CommonTypes
 let canvasHeight = CommonTypes.draw2dCanvasHeight
@@ -184,7 +204,40 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                     baseCanvas
                 
                 ]
-            viewCatalogue model dispatch
+            div [rightColumnStyle]
+                [
+                    div [ Style [Height "100%"]][ 
+                        div [ Style [PaddingTop "0vh"; Margin "0"; PaddingBottom "0"]][
+                            button [
+                                Style [
+                                    Height "3vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.6vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (ChangeRightTab Catalogue))
+                            ][str "Catalogue"]
+                            button [
+                                Style [
+                                    Height "3vh"
+                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                    FontSize "1.6vh"
+                                    FontWeight "Bold"
+                                    Fill "Gray" // font color
+                                ]
+                                OnClick (fun _ -> dispatch (ChangeRightTab Properties))
+                            ][str "Properties"]
+                            match model.RightPaneTabVisible with
+                            | Catalogue ->
+                                    viewCatalogue model dispatch
+                            | Properties -> 
+                                    viewProperties model dispatch
+                        ]
+                    ]
+                ]
         ]
         
 
@@ -218,7 +271,17 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let newModel, newCmd = Symbol.update (Symbol.Msg.AddSymbol (compType, pos, compName)) model.Wire.Symbol
 
         {model with Wire = {model.Wire with Symbol = newModel}; UndoWireModels=(storePastWireData model.Wire model.UndoWireModels); RedoWireModels=[]}, newCmd
+    
+    //Changes Right Tab to display based on button pressed
+    | ChangeRightTab newTab ->
+        {model with RightPaneTabVisible = newTab}, Cmd.none
 
+    | ChangeSelectedComponent comp ->
+        {model with SelectedComponent = comp}, Cmd.none
+    (*
+    | UpdateComponent comp label
+        let updatedSymbol, _ =  
+*)
     // detects key presses from users
     | KeyPress s -> 
         match s with
@@ -263,7 +326,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             printStats() 
             model, Cmd.none
 
-        // togle buswidth legend
+        // toggle buswidth legend
         | AltV ->
             let newModel, _ = BusWire.update (BusWire.Msg.ToggleLegend) model.Wire
             {model with Wire = newModel}, Cmd.none
@@ -644,5 +707,5 @@ let init() =
         DragWire=dragWireInit
         CtrlPressed=false
         RightPaneTabVisible=Catalogue
-
+        SelectedComponent=None
     }, Cmd.map Wire cmds

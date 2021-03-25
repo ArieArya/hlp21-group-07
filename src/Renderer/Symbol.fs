@@ -676,7 +676,18 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             else 
                 sym
             ), Cmd.none
-
+(*
+    | UpdateSymbol (compId, newLabel, newWidth, newLsBit, newConstVal) ->
+        model
+        |> List.map (fun sym -> 
+                        if sym.Id = compId then
+                            sym.Label = newLabel
+                            sym.Label = newLabel
+                            sym.Label = newLabel
+                            if sym.Type = Constant then
+                                sym.Label = newConstVal
+                    ), Cmd.none
+*)
     // Resets OriginCopiedId to 0 - used when copy-pasting symbols and wires
     | ClearOriginCopiedId ->
         model
@@ -1603,3 +1614,13 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
 // extracts component type
 let extractComponentType (comp: CommonTypes.Component) : CommonTypes.ComponentType = 
     comp.Type
+
+//------------------------------------------------------------------------//
+//---------------------------For Properties View--------------------------//
+let findSelectedSymbol (symModel: Model) : CommonTypes.Component option = 
+    let selcomp = 
+        symModel
+        |> List.tryFind (fun sym -> sym.IsSelected = true)  
+    match selcomp with  
+        | Some sym -> Some (symToComp sym) 
+        | None -> None

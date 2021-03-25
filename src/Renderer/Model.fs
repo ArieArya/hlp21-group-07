@@ -86,6 +86,7 @@ type Model = {
     DragWire: DragWireType
     CtrlPressed: bool
     RightPaneTabVisible: RightTab
+    SelectedComponent: CommonTypes.Component option
     }
 
 //------------------------------------------------------------------------//
@@ -104,7 +105,8 @@ type Msg =
     | CreateSymbol of CommonTypes.ComponentType * float * float
     | MouseMsg of MouseT
     | CtrlKeyPress of KeyOp
-
+    | ChangeRightTab of RightTab
+    | ChangeSelectedComponent of CommonTypes.Component option
     // This section is for handling user-defined parameters for Interface (replacing ISSIE)
     // for input and output
     | ChangeInputWidth of int

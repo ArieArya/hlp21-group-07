@@ -22,6 +22,8 @@
 
     <!-- Right Column -->
     <Compile Include="RightCol/CatalogueView.fs" />
+    <Compile Include="RightCol/PropertiesView.fs" />
+
 
     <Compile Include="Sheet.fs" />
     <Compile Include="Renderer.fs" />

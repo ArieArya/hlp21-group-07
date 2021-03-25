@@ -9,30 +9,9 @@ open Model
 open Helpers
 open type CommonTypes.ComponentType
 
-// obtains the right-side menu to obtain user inputs (e.g. symbol type, name
-// of components, number of input and output ports, port width, etc.)
-let rightColumnStyle = 
-    Style [
-        Position PositionOptions.Fixed
-        Right "0px"
-        Top "0px"
-        Height  "100vh"
-        Width "25%"
-        BorderLeft  "0.2vh solid lightgray"
-        BorderTop "0.2vh solid lightgray"
-        BorderBottom "0.2vh solid lightgray"
-        BorderRight "0.2vh solid lightgray"
-        Margin "0"
-        Padding "0"
-        UserSelect UserSelectOptions.None
-        ZIndex 31
-        BackgroundColor "#fcfcfc"
-    ]
 
 let viewCatalogue (model:Model) (dispatch:Dispatch<Msg>) =
-    div [rightColumnStyle]
-        [
-        div [ Style [Height "100%"; Width "100%"; OverflowY OverflowOptions.Scroll; TextAlign TextAlignOptions.Center; PaddingBottom "5vh"]]
+        div [ Style [Height "100%"; Width "100%"; TextAlign TextAlignOptions.Center; PaddingBottom "5vh"]]
             [
                 // module selection title
                 div [ Style [PaddingTop "5vh"]][
@@ -44,7 +23,7 @@ let viewCatalogue (model:Model) (dispatch:Dispatch<Msg>) =
                               FontWeight "Bold"
                               Fill "Gray" 
                           ]
-                      ] [str "Module Selection"]
+                      ] [str "Catalogue"]
                 ] 
                 div [ Style [Width "25%"; Float FloatOptions.Left]]  [
                     // Not           
@@ -892,4 +871,4 @@ let viewCatalogue (model:Model) (dispatch:Dispatch<Msg>) =
                     ]
                 ]
             ]
-        ]
+        //]
