@@ -176,7 +176,11 @@ let renderWire = // Return wire svg
             printfn "DA LENGTH IS %A" pLen
             props.Points 
             |> List.pairwise //now we have points as pairs
-            |> List.mapi (fun i ps -> if i=0 || i=pLen then ps else shortenPoints ps)
+            |> List.mapi (fun i ps -> 
+                match i with 
+                | 0 -> (fst ps, snd (shortenPoints ps))
+                | pLen -> (fst (shortenPoints ps), snd ps) 
+                | _ -> shortenPoints ps)
             |> List.map (makeSVGLine (props.ColorP) nonLinearWidth)
             |> fun svgline -> g [] (List.append svgline (List.append wireAnnotation thePath))   
             )   
