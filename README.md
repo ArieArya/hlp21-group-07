@@ -122,10 +122,11 @@ When automatic routing, wires attempt to avoid symbols. This is especially impor
 </p>
 
 ### 16. Buswire dragging two symbols wire retains shape
-When dragging both symbols of a wire, the wire retains its shape completeley
+When dragging both symbols of a wire, the wire retains its shape completly
 <p align="center">
   <img src="/img/hovering.gif" width="60%">
 </p>
+
 ### 17. Toggle legend
 Wire annotations can be toggled on or off by the user
 <p align="center">
