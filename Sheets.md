@@ -1,4 +1,4 @@
-# Sheets Interface
+# Sheets Interface Documentation
 Sheet has the purpose of integrating the other modules together. Its main requirement is to ensure that all interfaces in all modules work correctly, and to handle user inputs ranging from mouse events and keyboard events (e.g. copy, paste, undo, redo). The main functionality of Sheets is to implement the following features:
 <ul>
   <li>Animating wire drag and drop animation</li>
