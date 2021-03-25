@@ -1238,6 +1238,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         // return updated model
         let newModel, newCmd = Symbol.update (Symbol.Msg.AddSymbol (compType, pos, compName)) model.Wire.Symbol
+
         {model with Wire = {model.Wire with Symbol = newModel}; UndoWireModels=(storePastWireData model.Wire model.UndoWireModels); RedoWireModels=[]}, newCmd
 
     // sets color for model

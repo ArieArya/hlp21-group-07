@@ -1494,11 +1494,11 @@ let updateSymbolModelWithComponent (symModel: Model) (comp:CommonTypes.Component
                 Y = (float comp.Y)
             }
 
-    let checkIfInModel : Symbol option = 
+    let checkIfSymbolInModel : Symbol option = 
         symModel
         |> List.tryFind (fun sym -> sym.Id = CommonTypes.ComponentId(comp.Id))
     
-    match checkIfInModel with
+    match checkIfSymbolInModel with
     | Some sym ->
         // update the model by removing the existing symbol with that component Id
         let updatedSymModel = 
@@ -1566,3 +1566,6 @@ let extractComponent
 // extracts the list of symbols from the model and converts them to the component type
 let extractComponents (symModel: Model) : CommonTypes.Component list = 
     List.map symToComp symModel
+
+let extractComponentType (comp: CommonTypes.Component) : CommonTypes.ComponentType = 
+    comp.Type

@@ -60,6 +60,9 @@ type Msg =
 let posAdd a b =
     {X=a.X+b.X; Y=a.Y+b.Y}
 
+// obtains the string from the component id
+let unwrapConnectionId (CommonTypes.ConnectionId x) = x
+
 //------------------------------------------------------------------------//
 //-------------------------View Function for BusWire----------------------//
 //------------------------------------------------------------------------//
@@ -643,9 +646,83 @@ let isAnyWireHovered (wModel: Model) (pos: XYPos) : bool =
 //------------------------------------------------------------------------//
 
 /// interfaces for Issie currently not used
-let extractWire (wModel: Model) (sId:CommonTypes.ComponentId) : CommonTypes.Component= 
-    failwithf "Not implemented"
-let extractWires (wModel: Model) : CommonTypes.Component list = 
-    failwithf "Not implemented"
-let updateSymbolModelWithComponent (symModel: Model) (comp:CommonTypes.Component) =
-    failwithf "Not Implemented"
+
+let wireToConnection (wire: Wire) : CommonTypes.Connection = 
+    let vertices = 
+        wire.Points
+        |> List.map (fun pos -> (pos.X, pos.Y))
+    {
+        Id = unwrapConnectionId wire.Id
+        Source = wire.SrcPort
+        Target = wire.TargetPort
+        Vertices = vertices
+    }
+
+/// Update the symbol with matching componentId to comp, or add a new symbol based on comp.
+let updateWireModelWithConnection (wModel: Model) (conn:CommonTypes.Connection): Model =
+    let checkIfWireInModel : Wire option = 
+        wModel.WX
+        |> List.tryFind (fun wire -> wire.Id = CommonTypes.ConnectionId(conn.Id))
+    
+    let points = 
+        conn.Vertices
+        |> List.map (fun (x, y) -> 
+                        { X = x; Y = y}
+                    )
+    let sourceWidth = 
+        match conn.Source.Width with 
+        | Some width -> width
+        | None -> failwithf "What? Wire Width not found"
+
+    let updatedWireList : Wire List = 
+        match checkIfWireInModel with
+        | Some wire ->
+            
+            // update the models wire list in the model by removing the existing connection with that connection Id
+            let updatedWireModel = 
+                wModel.WX
+                |> List.filter (fun wire -> wire.Id <> CommonTypes.ConnectionId(conn.Id))
+
+
+            // create updated wire based on the connection given
+            let updatedWire =
+                {
+                    Id = CommonTypes.ConnectionId(conn.Id)
+                    SrcPort = conn.Source
+                    TargetPort = conn.Target
+                    Points = points
+                    DidUserModifyPoint = generateFalses (List.length points)
+                    SegmentSelected = None
+                    IsSelected = false
+                    Width = sourceWidth
+                    ShowLegend = true
+                    IsCopied = false
+                }
+
+            // add the updated wire to the head of the wire list in the model
+            updatedWire :: updatedWireModel
+        
+        | None ->
+
+            // create a new wire based on the connection given
+            let newWire : Wire = 
+                makeWireFromPorts conn.Source conn.Target points sourceWidth
+            
+            // add the new wire to the head of the wire list in the model
+            newWire :: wModel.WX
+    
+    {wModel with WX = updatedWireList}
+
+let extractWire 
+    (wModel: Model) 
+    (wId:CommonTypes.ConnectionId) : CommonTypes.Connection= 
+    
+    List.tryFind (fun wire -> wire.Id = wId) wModel.WX
+    |> function
+        | Some w -> wireToConnection w
+        | None -> failwithf "What? Symbol not found in model"
+
+//extracts the list of wires from the model and converts them to the connection type
+let extractWires (wModel: Model) : CommonTypes.Connection list = 
+    wModel.WX
+    |> List.map wireToConnection
