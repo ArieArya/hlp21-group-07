@@ -12,3 +12,5 @@ The interface functions of each module can be found in their corresponding markd
 </ul>
 
 ## Summary of Demo Features and Functionality
+### Canvas
+The 
