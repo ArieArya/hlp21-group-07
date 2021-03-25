@@ -132,3 +132,9 @@ Wire annotations can be toggled on or off by the user
 <p align="center">
   <img src="/img/toggle-legend.gif" width="60%">
 </p>
+
+### 19. Symbol Overlap
+When symbols overlap, their bounding boxes are shown to indicate their borders and which symbol is on top.
+<p align="center">
+  <img src="/img/toggle-legend.gif" width="60%">
+</p>
