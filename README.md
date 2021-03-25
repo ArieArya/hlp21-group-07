@@ -47,7 +47,7 @@ A demonstration of width-inference is shown below with the module SplitWire with
 </p>
 
 ### 5. Automatically Adding New Symbols in Empty Position
-When new symbols are added, they are automatically placed in an empty position in the canvas (unless canvas is completely full). This is feature is demonstrated below:
+When new symbols are added, they are automatically placed in an empty position in the canvas to prevent collision (unless canvas is completely full). This is feature is demonstrated below:
 <p align="center">
   <img src="/img/auto-positioning.gif" width="80%">
 </p>
