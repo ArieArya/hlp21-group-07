@@ -25,6 +25,7 @@ All symbols defined from the ISSIE CommonTypes are shown in the figure below:
 <p align="center">
   <img src="/img/symbols.PNG" width="80%">
 </p>
+Note that the custom component is fully customizable from the canvas interface - including customizable name, number of ports, and width of each ports. It follows the same type defined by the Issie CommonTypes.
 
 ### 3. Snap-to-Grid
 Each symbol in the canvas will be snapped to the closest grid snapping point. This functionality works for both single symbol dragging and multiple symbol dragging. This feature is demonstrated with two symbols shown below:
