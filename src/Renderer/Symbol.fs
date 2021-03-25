@@ -90,6 +90,7 @@ let posAdd a b =
 /// Converts x and y integers to XYPos
 let posOf x y = {X=x;Y=y}
 
+/// Finds the position of ports on top of Symbol
 let portPos 
     (inOrOut: CommonTypes.PortType) 
     (vertices: XYPos list)
@@ -136,6 +137,7 @@ let verticesToStr (vertices: XYPos List) : string =
     |> List.map (fun pos -> (sprintf "%f,%f " pos.X pos.Y))
     |> List.fold (+) ""
 
+/// Get unique symbol number (for automated symbol numbering)
 let getNextSymNumber (symModel: Model) (compType: CommonTypes.ComponentType) : int = 
     // obtain list of symbols with the same component type
     let sameCompSymNumber = 
@@ -159,6 +161,7 @@ let getNextSymNumber (symModel: Model) (compType: CommonTypes.ComponentType) : i
                             )
         |> List.map (fun x -> x.SymbolNumber)
     
+    // finds the minimum number available
     match sameCompSymNumber.Length with 
     | 0 -> 1
     | _ -> 
@@ -166,14 +169,14 @@ let getNextSymNumber (symModel: Model) (compType: CommonTypes.ComponentType) : i
         |> List.find (fun x -> not (List.contains x sameCompSymNumber))
 
 
-/// Obtains new label for symbols
+/// Obtains new numbered symbol label
 let getNextLabel (compType: CommonTypes.ComponentType) (symNumber: int) : string = 
     match compType with 
-    | Input width -> "IN" + (string symNumber)
-    | Output width -> "OUT" + (string symNumber)
+    | Input _ -> "IN" + (string symNumber)
+    | Output _ -> "OUT" + (string symNumber)
     | IOLabel -> ""
-    | BusSelection (outWidth, outLSBit) ->  ""                                
-    | Constant (width, value) -> "CONST" + (string symNumber)
+    | BusSelection _ ->  ""                                
+    | Constant _ -> "CONST" + (string symNumber)
     | Not -> "NOT" + (string symNumber)
     | And -> "AND" + (string symNumber)
     | Or -> "OR" + (string symNumber)
@@ -184,17 +187,17 @@ let getNextLabel (compType: CommonTypes.ComponentType) (symNumber: int) : string
     | Decode4 -> "DEC" + (string symNumber)
     | Mux2 -> "MUX" + (string symNumber)
     | Demux2 -> "DEMUX" + (string symNumber)
-    | NbitsAdder busWidth -> "ADDR" + (string symNumber)
+    | NbitsAdder _ -> "ADDR" + (string symNumber)
     | MergeWires -> ""
-    | SplitWire busWidth -> ""
+    | SplitWire _ -> ""
     | DFF -> "DFF" + (string symNumber)
     | DFFE -> "DFFE" + (string symNumber)
-    | Register busWidth -> "REG" + (string symNumber)
-    | RegisterE busWidth -> "REGE" + (string symNumber)                   
-    | AsyncROM mem -> "Async-ROM" + (string symNumber)
-    | ROM mem -> "Sync-ROM" + (string symNumber)
-    | RAM mem -> "RAM" + (string symNumber)
-    | Custom custCompType -> "CUST" + (string symNumber)
+    | Register _ -> "REG" + (string symNumber)
+    | RegisterE _ -> "REGE" + (string symNumber)                   
+    | AsyncROM _ -> "Async-ROM" + (string symNumber)
+    | ROM _ -> "Sync-ROM" + (string symNumber)
+    | RAM _ -> "RAM" + (string symNumber)
+    | Custom _ -> "CUST" + (string symNumber)
 
 // checks if a given position lies within a given symbol
 let posInSymbol (sym: Symbol) (pos:XYPos) : bool= 
@@ -222,12 +225,12 @@ let checkIfSymbolsOverlap (symModel: Model) (sym1: Symbol) : bool =
                 |> List.tryFind (fun vertex -> 
                     ((posInSymbol sym2 vertex)&& (sym1 <> sym2)))
             match cornerInSymbol with 
-            | Some x -> true
+            | Some _ -> true
             | None -> false
         )
 
     match overlappedSymbol with 
-    | Some x -> true
+    | Some _ -> true
     | None -> false
 
 // obtains the string from the component id
@@ -262,14 +265,18 @@ let newSymbolTemplate
     (h: int) (w: int) (inputPortWidthList: (int option) list) 
     (outputPortWidthList: (int option) list) (compName: string) (model: Model): Symbol =
     
+    // obtain unique id
     let id = 
         CommonTypes.ComponentId (uuid())
     
+    // determine number of input and output ports
     let numberOfInputs = inputPortWidthList.Length
     let numberOfOutputs = outputPortWidthList.Length
 
+    // determine unique symbol numbering
     let symNumber = getNextSymNumber model compType
 
+    // obtain automatically numbered symbol label
     let compLabel = 
         match compType with 
         | IOLabel -> compName
@@ -277,17 +284,19 @@ let newSymbolTemplate
             (sprintf "(%d:%d)" ((outWidth - 1) + outLSBit) (outLSBit))
         | _ -> getNextLabel compType symNumber
 
+    // obtain symbol vertices
     let vertices = calcVertices pos h w
 
+    // create record to hold symbol model
     {
         Pos = pos
-        LastDragPos = {X=0. ; Y=0.} // initial value can always be this
-        IsDragging = false // initial value can always be this
+        LastDragPos = {X=0. ; Y=0.} 
+        IsDragging = false 
         IsSelected = false
         IsHovered = false
         IsCopied = false
         IsOverlapped = false
-        Id = id // create a unique id for this symbol
+        Id = id 
         Type = compType
         Label = compLabel
         InputPorts = 
@@ -309,7 +318,7 @@ let newSymbolTemplate
         SymbolNumber = symNumber
         H = h
         W = w
-        OriginCopiedId = CommonTypes.ComponentId "0" // default copied id
+        OriginCopiedId = CommonTypes.ComponentId "0" 
     }
 
 /// Creates New Symbol
@@ -317,6 +326,8 @@ let createNewSymbol
     (comptype: CommonTypes.ComponentType) (compName: string) (pos: XYPos) 
     (model: Model) (extraComps: Symbol List): Symbol =
     
+    // create symbol based on its defined component type
+    // port width is of type 'int option' to allow width inference
     match comptype with 
     | Input busWidthx ->
         newSymbolTemplate comptype pos 20 60 [Some 1] [Some busWidthx] (compName) (model @ extraComps)
@@ -359,10 +370,12 @@ let createNewSymbol
     | RAM mem ->
         newSymbolTemplate comptype pos 140 140 [Some mem.AddressWidth; Some mem.WordWidth; Some 1; Some 1] [Some mem.WordWidth] (compName) (model @ extraComps)
     | Custom custCompType ->
+        // obtain variable input port widths
         let inpPortWidths = 
             custCompType.InputLabels
             |> List.map (fun x -> Some (snd x))
         
+        // obtain variable output port widths
         let outPortWidths = 
             custCompType.OutputLabels
             |> List.map (fun x -> Some (snd x))
@@ -464,6 +477,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                 let cornerPointX = sym.Vertices.[0].X
                 let cornerPointY = sym.Vertices.[0].Y
 
+                // perform vertical snap-to-grid
                 let diffY = 
                     let nearestFloorGridValue = floor(cornerPointY / 20.) * 20.
                     if (cornerPointY - nearestFloorGridValue) > 10. then 
@@ -471,6 +485,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                     else 
                         (nearestFloorGridValue - cornerPointY)
 
+                // perform horizontal snap-to-grid
                 let diffX = 
                     let nearestFloorGridValue = floor(cornerPointX / 20.) * 20.
                     if (cornerPointX - nearestFloorGridValue) > 10. then 
@@ -509,6 +524,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                     |> List.mapi (fun i outPort -> 
                         {outPort with Pos = portPos CommonTypes.PortType.Output curVertices outputPortLength (i+1)})
 
+                // update new positions after snap-to-grid
                 { sym with
                     Pos = curPos
                     InputPorts = newInputPorts
@@ -593,6 +609,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                             {sym with ExpandedPort = (Some portType, portWidth)}
                     ), Cmd.none
     
+    // Mark all selected symbols (i.e. IsSelected=true) to isCopied=true
     | CopySymbols ->
         model 
         |> List.map (fun sym ->
@@ -602,7 +619,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                             {sym with IsCopied = false}
                         ), Cmd.none
 
+    // Duplicate symbols with isCopied=true (with its own unique ID)
     | PasteSymbols pasteMargin ->
+        // recursively create new symbols - recursion is required to automatically number symbols
         let rec getNewModel (curModel: Model) (newComponents: Symbol List) = 
             match curModel with
             | (sym::tl) when sym.IsCopied ->
@@ -615,6 +634,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                     |> List.map (fun i -> 
                         {newSymbol.InputPorts.[i] with Width=sym.InputPorts.[i].Width})
                 
+                // for variable port widths, ensure their widths are all the same when pasted
                 let newOutputPorts =    
                     [0..(newSymbol.OutputPorts.Length-1)] 
                     |> List.map (fun i -> 
@@ -634,6 +654,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
         getNewModel model [], Cmd.none
 
+    // Marks all symbols clicked (while ctrl is pressed) to IsSelected=true
     | ClickSymbol (mousePos, isCtrlPressed) -> 
         let isSymbolClicked symbol = 
             let vertices = symbol.Vertices
@@ -656,21 +677,26 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                 sym
             ), Cmd.none
 
-
+    // Resets OriginCopiedId to 0 - used when copy-pasting symbols and wires
     | ClearOriginCopiedId ->
         model
         |> List.map (fun sym -> 
             {sym with OriginCopiedId=CommonTypes.ComponentId "0"}), Cmd.none
 
+    // Marks all symbols as IsSelected - used when user presses Ctrl+A
     | SelectAllSymbols ->
         model
         |> List.map (fun sym -> 
             {sym with IsSelected=true}), Cmd.none
 
+    // When user performs an action, the previous model is saved (for undo purposes) 
+    // All symbol settings (IsDragging, IsHovered, IsSelected) is reset
     | SaveModel ->
         model
         |> List.map (fun sym -> 
             {sym with IsDragging=false; IsHovered=false; IsSelected=false}), Cmd.none
+
+
 
 //------------------------------------------------------------------------//
 //-------------------------View Function for Symbols----------------------//
@@ -684,6 +710,7 @@ type private RenderShapeProps =
         key: string 
     }
 
+/// Draws triangle for inverted output
 let notTriangle 
     (vertices: XYPos List) (pos: XYPos) 
     (color: string) (strokeColor: string): ReactElement List =
@@ -701,6 +728,7 @@ let notTriangle
         ][]
     ]
 
+/// Draws lines for MergeWire and SplitWire
 let wireLines 
     (vertices: XYPos List) (pos: XYPos) 
     (h: int) (splitOrMerge: bool): ReactElement List= 
@@ -750,6 +778,7 @@ let wireLines
         ][]
     ]
  
+/// Draws triangle for CLK
 let clockTriangle
     (vertices: XYPos List) (clkPortPos: XYPos): ReactElement List =
     [
@@ -771,7 +800,7 @@ let clockTriangle
             ][]
     ]
 
-/// Renders a single symbol including its ports, portNumber, and label
+/// Renders a single symbol
 let private renderShape =
     FunctionComponent.Of(
         fun (props : RenderShapeProps) ->
@@ -847,7 +876,7 @@ let private renderShape =
                         | _ -> 
                             portRadius, "none"
 
-
+                // draws port in symbol
                 g[][circle [
                             if portType = CommonTypes.PortType.Input then
                                 Cx props.Shape.InputPorts.[i].Pos.X; 
@@ -880,6 +909,7 @@ let private renderShape =
                         ][str <| (string el)]
                 ]
 
+            // obtain port and label
             let portLabels (lst: 'T List) (inOrOut: CommonTypes.PortType): ReactElement List = 
                 lst
                 |> List.map (fun el -> (string el))
@@ -890,7 +920,8 @@ let private renderShape =
                         else
                             createPortShapeAndLabel i el inOrOut
                     )
-                   
+            
+            // optain label on top of a symbol
             let topLabel (symLabel: string) : ReactElement List = 
                 [text 
                     [
@@ -907,6 +938,7 @@ let private renderShape =
                     ] [str <| symLabel]
                 ]
 
+            // obtain symbol title 
             let title (symbolTitle: string) : ReactElement List = 
                 [text 
                     [
@@ -923,6 +955,7 @@ let private renderShape =
                     ] [str <| symbolTitle]
                 ]
             
+            // obtain all symbol labels based on symbol component type
             let labels : ReactElement List = 
                 match (props.Shape.Type: CommonTypes.ComponentType) with
                 | Input width -> 
@@ -1046,6 +1079,7 @@ let private renderShape =
                     @ (portLabels outputNameList CommonTypes.PortType.Output) 
                     @ (title custCompType.Name)
             
+            // draws shape for symbol
             [
                 polygon
                     [ 
@@ -1205,29 +1239,9 @@ let findPortByPosition (symModel: Model) (pos: XYPos) : CommonTypes.Port option 
         
 /// Finds if there is a symbol at a certain hovered position and whether it is selected
 let isSymbolHoveredAndSelected (symModel: Model) (pos: XYPos) = 
-    // find if there is a symbol that is hovered or selected
-    
-    // let selectedSymbol = 
-    //     symModel
-    //     |> List.tryFind (fun sym -> 
-    //                         let vertices = sym.Vertices
-
-    //                         // assume square vertices for symbol
-    //                         let v1 = vertices.[0]
-    //                         let v2 = vertices.[1]
-    //                         let v3 = vertices.[2]
-
-    //                         // perform bounding box calculation
-    //                         pos.X >= v1.X && pos.X <= v2.X && pos.Y >= v2.Y && pos.Y <= v3.Y)
-
-    // // if no symbol is found, return false, else return whether the symbol is selected               
-    // match selectedSymbol with
-    // | None -> false
-    // | Some sym ->
-    //     sym.IsSelected
     symModel
     |> List.tryFind (fun sym -> posInSymbol sym pos)
-    |> function    // if no symbol is found, return false, else return whether the symbol is selected  
+    |> function     
         | Some sym -> 
             sym.IsSelected
         | None -> false 
@@ -1310,9 +1324,10 @@ let findNextAvailablePos (symModel: Model) (dimensions: float * float) =
     | None -> {X=100.; Y=100.;}
 
 
-// check if two ports can be connected by inference. If possible, return new symbol model
-// with modified ports and return true
+/// Check if two ports can be connected by width inference. If possible, return new symbol model
+/// with modified ports and return true
 let portInference (symModel: Model) (port: CommonTypes.Port) (portWidth: int) : (Model * bool) = 
+    // find symbol with the host id of the port
     let hostSymbol = 
         symModel
         |> List.find (fun sym -> sym.Id = port.HostId)
@@ -1331,10 +1346,10 @@ let portInference (symModel: Model) (port: CommonTypes.Port) (portWidth: int) : 
                             else curPort)
         {hostSymbol with InputPorts=newInpPorts; OutputPorts=newOutPorts}
 
-
     // check if new symbol is valid
     let updatedSymbol, isValid = 
         match newHostSymbol.Type with
+        // width inference for split-wire
         | SplitWire _ ->
             let inpPort = newHostSymbol.InputPorts.[0]
             let outPort2 = newHostSymbol.OutputPorts.[1]
@@ -1342,6 +1357,7 @@ let portInference (symModel: Model) (port: CommonTypes.Port) (portWidth: int) : 
             // this is user-defined, should always hold a value
             let outPort1 = newHostSymbol.OutputPorts.[0]
 
+            // return updated symbol from width inference
             match outPort1.Width, inpPort.Width, outPort2.Width with
             | Some x, Some y, Some z -> 
                 (newHostSymbol, y = x + z)
@@ -1352,11 +1368,13 @@ let portInference (symModel: Model) (port: CommonTypes.Port) (portWidth: int) : 
             | _ -> 
                 (newHostSymbol, false)
         
+        // width inference for merge-wire
         | MergeWires ->
             let inpPort1 = newHostSymbol.InputPorts.[0]
             let inpPort2 = newHostSymbol.InputPorts.[1]
             let outPort = newHostSymbol.OutputPorts.[0]
 
+            // return updated symbol from width inference
             match inpPort1.Width, inpPort2.Width, outPort.Width with
             | Some x, Some y, Some z -> 
                 (newHostSymbol, z = x + y)
@@ -1375,9 +1393,11 @@ let portInference (symModel: Model) (port: CommonTypes.Port) (portWidth: int) : 
             | None, None, None -> 
                 (newHostSymbol, false)
 
+        // width inference for bus-selection
         | BusSelection (outWidth, outLSBit) ->
             let inpPort = newHostSymbol.InputPorts.[0]
 
+            // return updated symbol from width inference
             match inpPort.Width with
             | Some width ->
                 if width >= outLSBit + outWidth then (newHostSymbol, true)
@@ -1385,10 +1405,12 @@ let portInference (symModel: Model) (port: CommonTypes.Port) (portWidth: int) : 
             | None ->
                 (newHostSymbol, false)
 
+        // width inference for IOLabel
         | IOLabel ->
             let inpPort = newHostSymbol.InputPorts.[0]
             let outPort = newHostSymbol.OutputPorts.[0]
 
+            // return updated symbol from width inference
             match inpPort.Width, outPort.Width with 
             | Some x, _ -> 
                 ({newHostSymbol with OutputPorts=[{outPort with Width = Some(x)}]}, true)
@@ -1397,9 +1419,11 @@ let portInference (symModel: Model) (port: CommonTypes.Port) (portWidth: int) : 
             | _ -> 
                 (newHostSymbol, false)
 
+        // no width inference needed for any other symbol
         | _ ->
             (newHostSymbol, false)
 
+    // if width inference is valid, return the new model and a bool stating it is valid
     match updatedSymbol, isValid with 
     | newSymbol, true ->
         let newSymModel = 
@@ -1412,15 +1436,20 @@ let portInference (symModel: Model) (port: CommonTypes.Port) (portWidth: int) : 
         (symModel, false)
 
 
+/// When deleting a symbol, variable port widths must be reset for width inference
 let variablePortReset (symModel: Model) (port: CommonTypes.Port) : Model = 
+    // find symbol with the host id of the port
     let hostSymbol = 
         symModel
         |> List.find (fun sym -> sym.Id = port.HostId)
 
+    // obtain new symbol (with updated ports) after the connection from port is deleted
     let newSymbol = 
         match hostSymbol.Type with
+        // width-inference for IOLabel
         | IOLabel -> hostSymbol
 
+        // width-inference for BusSelection
         | BusSelection _ ->
             let inpPort = hostSymbol.InputPorts.[0]
 
@@ -1429,6 +1458,7 @@ let variablePortReset (symModel: Model) (port: CommonTypes.Port) : Model =
             else 
                 hostSymbol
 
+        // width-inference for MergeWires
         | MergeWires ->
             let inpPort1 = hostSymbol.InputPorts.[0]
             let inpPort2 = hostSymbol.InputPorts.[1]
@@ -1443,6 +1473,7 @@ let variablePortReset (symModel: Model) (port: CommonTypes.Port) : Model =
             else 
                 hostSymbol
         
+        // width-inference for SplitWire
         | SplitWire _ ->
             let inpPort = hostSymbol.InputPorts.[0]
             let outPort2 = hostSymbol.OutputPorts.[1]
@@ -1457,9 +1488,10 @@ let variablePortReset (symModel: Model) (port: CommonTypes.Port) : Model =
             else 
                 hostSymbol
         
+        // no width inference needed for any other symbol
         | _ -> hostSymbol
 
-
+    // return new Symbol model
     symModel
     |> List.map (fun sym -> 
         if sym.Id = hostSymbol.Id then 
@@ -1467,25 +1499,27 @@ let variablePortReset (symModel: Model) (port: CommonTypes.Port) : Model =
         else 
             sym)
                             
-
-let doesPortBelongToSymbol (portId: string) symbol = 
+/// Determines if a port belongs to a symbol
+let doesPortBelongToSymbol (portId: string) (symbol: Symbol) = 
     let sameId (id: string) (port: CommonTypes.Port) = 
         id = port.Id 
     List.exists (sameId portId) (symbol.InputPorts) || List.exists (sameId portId) (symbol.OutputPorts)
 
+/// Finds the symbol which the port belongs to
 let findSymbolFromPort (symbolModel: Model) (portId: string) = 
     List.tryFind (doesPortBelongToSymbol portId) symbolModel 
 
+/// Determines if a port's host symbol is being dragged
 let isSymbolBeingDragged (symbolModel: Model) (portId: string) = 
     let symbolFound = findSymbolFromPort symbolModel portId
     match symbolFound with  
     | Some x -> x.IsDragging
     | None -> false
+
+
 //------------------------------------------------------------------------//
 //---------------------------interface to Issie---------------------------//
 //------------------------------------------------------------------------//
-
-// interface for Issie currently not used
 
 /// Update the symbol with matching componentId to comp, or add a new symbol based on comp.
 let updateSymbolModelWithComponent (symModel: Model) (comp:CommonTypes.Component) : Model =
@@ -1538,7 +1572,6 @@ let updateSymbolModelWithComponent (symModel: Model) (comp:CommonTypes.Component
         
         // add the new symbol to the head of the model
         newSym :: symModel
-    
 
 // converts the symbol into a component type, which is used in Issie
 let symToComp (sym: Symbol) : CommonTypes.Component= {
@@ -1567,5 +1600,6 @@ let extractComponent
 let extractComponents (symModel: Model) : CommonTypes.Component list = 
     List.map symToComp symModel
 
+// extracts component type
 let extractComponentType (comp: CommonTypes.Component) : CommonTypes.ComponentType = 
     comp.Type
