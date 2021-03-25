@@ -1,5 +1,5 @@
 # Sheets Interface
-Sheet has the purpose of integrating the other modules together. Its main requirement is to ensure that all interfaces in all modules work correctly, and to handle user inputs ranging from mouse events to component parameter selection (e.g. component names, number of input or output ports, port width, etc.). The main functionality of Sheets is to implement the following features:
+Sheet has the purpose of integrating the other modules together. Its main requirement is to ensure that all interfaces in all modules work correctly, and to handle user inputs ranging from mouse events and keyboard events (e.g. copy, paste, undo, redo). The main functionality of Sheets is to implement the following features:
 <ul>
   <li>Animating wire drag and drop animation</li>
   <li>Allows moving of wires and symbols</li>
@@ -7,30 +7,48 @@ Sheet has the purpose of integrating the other modules together. Its main requir
   <li>Automatic positioning of new symbols without collision</li>
   <li>Highlighting available ports (using port inference) during wire drag and drop</li>
   <li>Animating a rectangular dragging box to select multiple symbols and wires to perform multiple dragging / deletion</li>
+  <li>Copy & Paste</li>
+  <li>Undo & Redo</li>
+  <li>Snap-to-grid</li>
 </ul>
 
 ## Model State
-The model state for Sheets include Wire, which is of type BusWire.Model (this can be observed in the <a href="/BusWire.md">BusWire markdown file</a>), a dragging box of type 2-tuple (XYPos * XYPos) which defines the two coordinates of the corners of the box which the user drags to select multiple components, and CompInfo, whose type is described below and contains information including the added component label, its port width, the number of input ports, and the number of output ports.
+The model state for Sheets is shown below. This includes:
+<ul>
+  <li><b>Wire: </b>this holds the Wire model state and is of type BusWire.Model (this can be observed in the <a href="/BusWire.md">BusWire markdown file.</a>)</li>
+  <li><b>UndoWireModels and RedoWire Models: </b> this is of type Wire list, and keeps track of previous models for redo and undo operations.</li>
+  <li><b>DragBox and DragWire: </b>this is of type DragBoxType and DragWireType respectively (shown below), and is required to animate the dragbox for multiple component selection, as well as the wire drag and drop animation.</li>
+  <li><b>CtrlPressed: </b>a state indicating whether the key "Ctrl" is pressed, used to trigger the KeyboardMsg CtrlA (select all), CtrlC (copy), CtrlV (paste), CtrlZ (undo), CtrlY (redo)</li>
+</ul>
 ```F#
 type Model = 
-  {
+{
     Wire: BusWire.Model
+    UndoWireModels: BusWire.Model list
+    RedoWireModels: BusWire.Model list
     ComponentInfo: CompInfo
-    DragBox: (XYPos * XYPos)
-  }
+    DragBox: DragBoxType
+    DragWire: DragWireType
+    CtrlPressed: bool
+}
+
+type DragBoxType = 
+{
+    Edge1: XYPos
+    Edge2: XYPos
+    isDragging: bool
+}
+
+type DragWireType = 
+{
+    SrcEdge: XYPos
+    TargetEdge: XYPos
+    isDragging: bool
+    DraggingPort: CommonTypes.PortType
+}
 ```
 
-## CompInfo Type
-CompInfo is an additional type for Sheets to handle user inputs of the component parameters they would like to select. This is shown below:
-```F#
-type CompInfo = 
-  {
-    PortWidth: int
-    ComponentLabel: string
-    NumInputPorts: int
-    NumOutputPorts: int
-  }
-```
+
 The description for each field is shown below:
 <ul>
   <li><b>PortWidth: </b>defines the input and output port widths of the newly created component.</li>
