@@ -95,6 +95,11 @@ let returnSign x =
     | _ when x>0. -> 10.
     | _ when x<0. -> -10.
     | _ -> x 
+let returnSignLine x = 
+    match x with 
+    | _ when x>0. -> 20.
+    | _ when x<0. -> -20.
+    | _ -> x 
 let shortenPoints (startP, endP) = 
     printfn "STARTP IS %A. ENDP IS %A" startP endP
     match 1 with 
@@ -179,14 +184,15 @@ let renderWire = // Return wire svg
             let nonLinearWidth = getNonLinearWidth (props.Width)
             let thePath = createCurves (props.Points) (props.ColorP) nonLinearWidth
             let pLen = List.length (props.Points) - 2
-            printfn "DA LENGTH IS %A" pLen
+            printfn "POINTS ARE %A" (props.Points)
             props.Points 
             |> List.pairwise //now we have points as pairs
             |> List.mapi (fun i ps -> 
-                match i with 
-                | 0 -> (fst ps, snd (shortenPoints ps))
-                | pLen -> (fst (shortenPoints ps), snd ps) 
-                | _ -> shortenPoints ps)
+                printfn "I IS %A" i
+                match 1 with 
+                | _ when i=0  -> printfn "IN 0"; (fst ps, snd (shortenPoints ps))
+                | _ when i=pLen -> printfn "IN plen";(fst (shortenPoints ps), snd ps) 
+                | _ -> printfn "IN else"; shortenPoints ps)
             |> List.map (makeSVGLine (props.ColorP) nonLinearWidth)
             |> fun svgline -> g [] (List.append svgline (List.append wireAnnotation thePath))   
             )   
