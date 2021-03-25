@@ -49,6 +49,7 @@ type Msg =
     | PasteWires
     | SelectAll
     | SaveModel
+    | ErrorHighlight
 
 
 
@@ -364,7 +365,11 @@ let init n () =
     []
     |> (fun wires -> {WX=wires;Symbol=symbols; Color=CommonTypes.CustomColorDarkBlue},Cmd.none)
 
-let makeWireFromPorts (srcPort) (targetPort) (points: XYPos list) (width: int) : Wire=
+let makeWireFromPorts (srcPort) (targetPort) (points: XYPos list) (width: int) (wireModel: Wire list) : Wire=
+        let showLegend = 
+            if List.length wireModel > 0 
+                then wireModel.[0].ShowLegend
+                else true
         {
             Id=CommonTypes.ConnectionId (uuid())
             SrcPort = srcPort
@@ -374,7 +379,7 @@ let makeWireFromPorts (srcPort) (targetPort) (points: XYPos list) (width: int) :
             SegmentSelected = None
             IsSelected = false
             Width = width
-            ShowLegend = true
+            ShowLegend = showLegend
             IsCopied = false
         }
 
@@ -498,7 +503,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             let srcPortPos = port1.Pos
             let targetPortPos = port2.Pos
             let wirePoints = getInitialWirePoints (model.Symbol) srcPortPos targetPortPos
-            let newWire = makeWireFromPorts (port1) (port2) wirePoints (portWidth)
+            let newWire = makeWireFromPorts (port1) (port2) wirePoints (portWidth) (model.WX)
             {model with WX=List.append model.WX [newWire]}, Cmd.none
         | None ->
             model, Cmd.none
@@ -539,10 +544,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         {model with WX=newWX; Symbol=newSymbol}, Cmd.none
     | ToggleLegend ->
-        let newWireModel = 
-            (model.WX) 
-            |> List.map (fun wire -> {wire with ShowLegend = not (wire.ShowLegend)})
-        {model with WX=newWireModel}, Cmd.none
+        if List.length (model.WX) >0 
+        then 
+            let firstLegend = model.WX.[0].ShowLegend
+            let newWireModel = 
+                (model.WX) 
+                |> List.map (fun wire -> {wire with ShowLegend = not firstLegend})
+            {model with WX=newWireModel}, Cmd.none
+        else model, Cmd.none
 
     | DeleteWiresBySymbol ->
         let remSelectedWires = List.filter (fun wire -> not wire.IsSelected) model.WX
@@ -634,7 +643,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                         let newSrcPortPos = newSrcPort.Pos
                                         let newTargetPortPos = newTargetPort.Pos
                                         let wirePoints = getInitialWirePoints (model.Symbol) newSrcPortPos newTargetPortPos
-                                        let newWire = makeWireFromPorts (newSrcPort) (newTargetPort) wirePoints (wireWidth)
+                                        let newWire = makeWireFromPorts (newSrcPort) (newTargetPort) wirePoints (wireWidth) (model.WX)
 
                                         [wire; newWire]
                                         
@@ -653,7 +662,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                         let newSrcPortPos = newSrcPort.Pos
                                         let newTargetPortPos = newTargetPort.Pos
                                         let wirePoints = getInitialWirePoints (model.Symbol) newSrcPortPos newTargetPortPos
-                                        let newWire = makeWireFromPorts (newSrcPort) (newTargetPort) wirePoints (wireWidth)
+                                        let newWire = makeWireFromPorts (newSrcPort) (newTargetPort) wirePoints (wireWidth) (model.WX)
 
                                         [{wire with IsSelected=false}; {newWire with IsSelected=true}]
 
@@ -680,6 +689,19 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | SaveModel ->
         let newSymbol, _ = Symbol.update (Symbol.Msg.SaveModel) model.Symbol
         {model with Symbol=newSymbol}, Cmd.none 
+    
+    | ErrorHighlight ->
+        //get the list of ports connected by wires
+        let conPortList =
+            model.WX 
+            |> List.collect (fun wire -> 
+                    [wire.SrcPort; wire.TargetPort]
+                )        
+                
+        //update the symbol model by highlighting the ports that are not connected in red
+        let newSymbol, _ = Symbol.update (Symbol.Msg.ErrorHighlightPorts conPortList) model.Symbol
+
+        {model with Symbol = newSymbol}, Cmd.none
 
 //------------------------------------------------------------------------//
 //-------------------------Other interface functions----------------------//
@@ -759,7 +781,7 @@ let updateWireModelWithConnection (wModel: Model) (conn:CommonTypes.Connection):
 
             // create a new wire based on the connection given
             let newWire : Wire = 
-                makeWireFromPorts conn.Source conn.Target points sourceWidth
+                makeWireFromPorts conn.Source conn.Target points sourceWidth (wModel.WX)
             
             // add the new wire to the head of the wire list in the model
             newWire :: wModel.WX

@@ -29,7 +29,7 @@ type CompInfo = {
     // for AsyncROM
     AsyncROMMemBits: int
     AsyncROMOutWidth: int
-    
+
     // for ROM
     ROMMemBits: int
     ROMOutWidth: int
@@ -72,7 +72,7 @@ type DragWireType = {
     DraggingPort: CommonTypes.PortType
 }
 
-type RightTab =    
+type RightTab =
     | Catalogue
     | Properties
 
@@ -96,7 +96,7 @@ type Model = {
 type KeyboardMsg =
     | CtrlS | AltC | AltV | AltZ | AltShiftZ | DEL | CtrlA | CtrlC | CtrlV | CtrlZ | CtrlY
 
-type KeyOp = 
+type KeyOp =
     | KeyDown | KeyUp
 
 type Msg =
@@ -107,6 +107,7 @@ type Msg =
     | CtrlKeyPress of KeyOp
     | ChangeRightTab of RightTab
     | ChangeSelectedComponent of CommonTypes.Component option
+    | ErrorHighlight
     // This section is for handling user-defined parameters for Interface (replacing ISSIE)
     // for input and output
     | ChangeInputWidth of int
@@ -123,7 +124,7 @@ type Msg =
     // for AsyncROM
     | ChangeAsyncROMMemBits of int
     | ChangeAsyncROMOutWidth of int
-    
+
     // for ROM
     | ChangeROMMemBits of int
     | ChangeROMOutWidth of int
@@ -151,4 +152,3 @@ type Msg =
     | ChangeCustComponentName of string
     | ChangeCustComponentInpPortsList of string
     | ChangeCustComponentOutPortsList of string
-
