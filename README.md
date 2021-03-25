@@ -65,7 +65,7 @@ Multiple symbols can be selected, dragged, and deleted, simultaneously. This fea
 </p>
 
 ### 8. Automatic & Manual Wire Routing
-Both automatic and manual wire routing is allowed in the canvas. When dragging symbols around, wires will automatically be re-routed. However, once placed, users are free to manually re-route the wires. This is demonstrated below:
+Both automatic and manual wire routing is allowed in the canvas. When dragging symbols around, wires will automatically be re-routed. However, once placed, users are free to manually re-route the wires. An important feature is that the program remembers which wire segment was modified by the user and ensures that when symbols are moved, that segment stays the same. This is demonstrated below:
 <p align="center">
   <img src="/img/wire-routing.gif" width="60%">
 </p>
@@ -96,6 +96,23 @@ When dragging wires from symbols, all target ports in which connections are poss
 
 ### 13. Showing Ports when Hovering over Symbols
 Ports in symbols are only shown when the symbol is hovered, otherwise it remains hidden. This is identical to the interface in ISSIE, and is demonstrated below:
+<p align="center">
+  <img src="/img/hovering.gif" width="60%">
+</p>
+
+### 14. Symbol avoidance for buswire
+When automatic routing, wires attempt to avoid symbols. This is especially important for feedback loops where we need to avoid the current symbol.
+<p align="center">
+  <img src="/img/hovering.gif" width="60%">
+</p>
+
+### 15. Curved Wires
+<p align="center">
+  <img src="/img/hovering.gif" width="60%">
+</p>
+
+### 16. Buswire dragging two symbols wire retains shape
+When dragging both symbols of a wire, the wire retains its shape completeley
 <p align="center">
   <img src="/img/hovering.gif" width="60%">
 </p>
