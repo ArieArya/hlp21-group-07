@@ -225,13 +225,18 @@ let boundingBoxNearbyVertical xPos firstY secondY (symbolModel: Symbol.Model) =
 
 
 let setupLinePos minimum maximum lowerMax upperMin = 
-    printfn "MINS ARE %A %A %A %A" minimum maximum lowerMax upperMin 
     match 1 with 
     | _ when lowerMax < minimum -> lowerMax - 30.
     | _ when minimum < lowerMax -> (minimum+lowerMax)/2.
     | _ when maximum > upperMin -> (maximum+upperMin)/2.
     | _ -> (minimum + maximum)/2.
 
+let setupLinePosThree minimum maximum lowerMax upperMin = 
+    match 1 with 
+    | _ when lowerMax < minimum -> (minimum + maximum)/2.
+    | _ when minimum < lowerMax -> (minimum+lowerMax)/2.
+    | _ when maximum > upperMin -> (maximum+upperMin)/2.
+    | _ -> (minimum + maximum)/2.
 let generateThreeLines (symbolModel: Symbol.Model) srcPortPos tgtPortPos (oldPoints: XYPos list) (didUserModifyPoint: bool list) = //generates 4 points for wire based on new src and tgt points and old user modification information
     let horizontalDifference = tgtPortPos.X - srcPortPos.X
     let middleLineX = 
@@ -247,7 +252,7 @@ let generateThreeLines (symbolModel: Symbol.Model) srcPortPos tgtPortPos (oldPoi
             let boundingBoxNearby = boundingBoxNearbyVertical initialXPos (srcPortPos.Y) (tgtPortPos.Y) symbolModel
             match boundingBoxNearby with 
             | None -> initialXPos 
-            | Some b -> setupLinePos (srcPortPos.X) (tgtPortPos.X) (b.[0].X) (b.[1].X) 
+            | Some b -> setupLinePosThree (srcPortPos.X) (tgtPortPos.X) (b.[0].X) (b.[1].X) 
     [srcPortPos; {X=middleLineX; Y=srcPortPos.Y}; {X=middleLineX; Y=tgtPortPos.Y}; tgtPortPos]
 
 
