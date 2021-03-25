@@ -39,15 +39,15 @@ type Msg =
     | Symbol of Symbol.Msg
     | AddWire of (CommonTypes.Port * CommonTypes.Port)
     | DeleteWire of (CommonTypes.ConnectionId)
-    | ToggleLegend of (CommonTypes.ConnectionId)
     | SetColor of CommonTypes.HighLightColor
     | MouseMsg of MouseT * bool
+    | BoxSelected of XYPos * XYPos * bool
+    | ToggleLegend
     | DeleteWiresBySymbol
     | SelectWiresFromSymbol
     | CopyWires
     | PasteWires
     | SelectAll
-    | BoxSelected of XYPos * XYPos * bool
     | SaveModel
 
 
@@ -509,14 +509,39 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with WX=wireRemoved}, Cmd.none
 
     | SetColor c -> {model with Color = c}, Cmd.none
+    | BoxSelected (pos1, pos2, isCtrlPressed) ->
+        let newSymbol = fst (Symbol.update (Symbol.Msg.BoxSelected (pos1, pos2, isCtrlPressed)) model.Symbol)
 
-    | ToggleLegend (conId) -> 
+        let newWX = 
+            let startX, startY, endX, endY = 
+                let x1 = pos1.X
+                let x2 = pos2.X
+                let y1 = pos1.Y
+                let y2 = pos2.Y
+
+                if x1 <= x2 && y1 <= y2 then x1, y1, x2, y2
+                elif x1 <= x2 && y1 > y2 then x1, y2, x2, y1
+                elif x1 > x2 && y1 <= y2 then x2, y1, x1, y2
+                else x2, y2, x1, y1
+
+            let portSelected (portPos: XYPos) = 
+                startX <= portPos.X && endX >= portPos.X && startY <= portPos.Y && endY >= portPos.Y 
+
+            model.WX
+            |> List.map (fun wire -> 
+                            let port1 = wire.SrcPort
+                            let port2 = wire.TargetPort
+           
+                            if (portSelected port1.Pos && portSelected port2.Pos) then {wire with IsSelected=true} 
+                            else 
+                                if isCtrlPressed then wire
+                                else {wire with IsSelected=false})
+
+        {model with WX=newWX; Symbol=newSymbol}, Cmd.none
+    | ToggleLegend -> //
         let newWireModel = 
             (model.WX) 
-            |> List.map (fun wire -> 
-                if (wire.Id=conId) 
-                then {wire with ShowLegend = not (wire.ShowLegend)}
-                else wire)
+            |> List.map (fun wire -> {wire with ShowLegend = not (wire.ShowLegend)})
         {model with WX=newWireModel}, Cmd.none
 
     | DeleteWiresBySymbol ->
@@ -649,36 +674,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             model.WX
             |> List.map (fun wire -> {wire with IsSelected=true})
         
-        {model with WX=newWX; Symbol=newSymbol}, Cmd.none
-
-    | BoxSelected (pos1, pos2, isCtrlPressed) ->
-        let newSymbol = fst (Symbol.update (Symbol.Msg.BoxSelected (pos1, pos2, isCtrlPressed)) model.Symbol)
-
-        let newWX = 
-            let startX, startY, endX, endY = 
-                let x1 = pos1.X
-                let x2 = pos2.X
-                let y1 = pos1.Y
-                let y2 = pos2.Y
-
-                if x1 <= x2 && y1 <= y2 then x1, y1, x2, y2
-                elif x1 <= x2 && y1 > y2 then x1, y2, x2, y1
-                elif x1 > x2 && y1 <= y2 then x2, y1, x1, y2
-                else x2, y2, x1, y1
-
-            let portSelected (portPos: XYPos) = 
-                startX <= portPos.X && endX >= portPos.X && startY <= portPos.Y && endY >= portPos.Y 
-
-            model.WX
-            |> List.map (fun wire -> 
-                            let port1 = wire.SrcPort
-                            let port2 = wire.TargetPort
-           
-                            if (portSelected port1.Pos && portSelected port2.Pos) then {wire with IsSelected=true} 
-                            else 
-                                if isCtrlPressed then wire
-                                else {wire with IsSelected=false})
-
         {model with WX=newWX; Symbol=newSymbol}, Cmd.none
 
 
