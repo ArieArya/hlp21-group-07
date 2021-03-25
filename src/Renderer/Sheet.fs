@@ -105,7 +105,6 @@ let storePastWireData (wireModel: BusWire.Model) (pastModelList: BusWire.Model l
 //------------------------------------------------------------------------//
 
 let zoom = 1.0
-
 /// Renders entire SVG canvas with zoom and scroll capability
 let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch<Msg>)=
     let sizeInPixels = sprintf "%.2fpx" ((1100. * zoom))
@@ -206,14 +205,15 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                 ]
             div [rightColumnStyle]
                 [
-                    div [ Style [Height "100%"]][ 
+                    div [ Style [Height "100%"; TextAlign TextAlignOptions.Center]][ 
                         div [ Style [PaddingTop "0vh"; Margin "0"; PaddingBottom "0"]][
                             button [
                                 Style [
-                                    Height "3vh"
+                                    Height "4vh"
+                                    Width "21vh"
                                     TextAnchor "middle" // horizontal algnment vs (X,Y)
                                     DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                    FontSize "1.6vh"
+                                    FontSize "2.2vh"
                                     FontWeight "Bold"
                                     Fill "Gray" // font color
                                 ]
@@ -221,10 +221,11 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                             ][str "Catalogue"]
                             button [
                                 Style [
-                                    Height "3vh"
+                                    Height "4vh"
+                                    Width "21vh"
                                     TextAnchor "middle" // horizontal algnment vs (X,Y)
                                     DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                    FontSize "1.6vh"
+                                    FontSize "2.2vh"
                                     FontWeight "Bold"
                                     Fill "Gray" // font color
                                 ]

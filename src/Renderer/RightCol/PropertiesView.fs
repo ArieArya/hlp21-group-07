@@ -21,10 +21,6 @@ let details (comp:CommonTypes.Component) =
                     str "Bus Selection"
                     br []
                     str "The output is the subrange [width+lsb-1..lsb] of the input bits. If width = 1 this selects one bit. Error if the input has less than width + lsb bits"
-                    br []
-                    br []
-                    str "Note that the output bit(s) are numbered from 0 even if the input range has LS bit number > 0. \
-                         The input bits connected are displayed in the schematic symbol"
             ]
         | IOLabel -> div [] [
             str "Label on Wire or Bus. Each label has input on left and output on right. \
@@ -94,7 +90,7 @@ let private textFormField comp isRequired model dispatch =
 let private makeNumberOfBitsField (comp:CommonTypes.Component) (model:Model) (dispatch:Dispatch<Msg>) =
     let title, width =
         match comp.Type with
-        | Input w | Output w | NbitsAdder w | Register w -> "Number of bits", w
+        | Input w | Output w | NbitsAdder w | Register w | RegisterE w -> "Number of bits", w 
         | SplitWire w -> "Number of bits in the top (LSB) wire", w
         | BusSelection( w, _) -> "Number of bits selected: width", w
         | Constant(w, _) -> "Number of bits in the wire", w
@@ -115,8 +111,25 @@ let private makeNumberOfBitsField (comp:CommonTypes.Component) (model:Model) (di
             Type "number"
             Placeholder $"{width}"
             OnChange (fun ev -> 
-                if (int ev.Value < 1) then dispatch (ChangeInputWidth(1))
-                else dispatch (ChangeInputWidth(int ev.Value)))
+                match comp.Type with
+                | Input _ -> 
+                    if (int ev.Value < 1) then dispatch (ChangeInputWidth(1)) else dispatch (ChangeInputWidth(int ev.Value))
+                | Output _ -> 
+                    if (int ev.Value < 1) then dispatch (ChangeOutputWidth(1)) else dispatch (ChangeOutputWidth(int ev.Value))
+                | NbitsAdder _ -> 
+                    if (int ev.Value < 1) then dispatch (ChangeAdderBits(1)) else dispatch (ChangeAdderBits(int ev.Value))
+                | Register _ -> 
+                    if (int ev.Value < 1) then dispatch (ChangeRegWidth(1)) else dispatch (ChangeRegWidth(int ev.Value))
+                | RegisterE _ -> 
+                    if (int ev.Value < 1) then dispatch (ChangeRegEnabledWidth(1)) else dispatch (ChangeRegEnabledWidth(int ev.Value))
+                | SplitWire _ -> 
+                    if (int ev.Value < 1) then dispatch (ChangeSplitOutWidth(1)) else dispatch (ChangeSplitOutWidth(int ev.Value))
+                | BusSelection( _, _) -> 
+                    if (int ev.Value < 1) then dispatch (ChangeBusSelectionOutWidth(1)) else dispatch (ChangeBusSelectionOutWidth(int ev.Value))
+                | Constant(_, _) -> 
+                    if (int ev.Value < 1) then dispatch (ChangeConstantWidth(1)) else dispatch (ChangeConstantWidth(int ev.Value))
+                | c -> failwithf "makeNumberOfBitsField called with invalid component: %A" c
+            )
 
             Style [
                 Width "50%"
