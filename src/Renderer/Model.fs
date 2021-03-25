@@ -104,6 +104,7 @@ type Msg =
     | CreateSymbol of CommonTypes.ComponentType * float * float
     | MouseMsg of MouseT
     | CtrlKeyPress of KeyOp
+    | ErrorHighlight
 
     // This section is for handling user-defined parameters for Interface (replacing ISSIE)
     // for input and output

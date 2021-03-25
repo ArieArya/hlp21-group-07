@@ -545,7 +545,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
             // return updated model
             {model with Wire={model.Wire with WX=newWX; Symbol=newSymbol}; DragBox=resetDragBox; DragWire=resetDragWire}, Cmd.none
-
+        
+    | ErrorHighlight ->
+        // return updated model
+        let newModel, newCmd = 
+            BusWire.update (BusWire.Msg.ErrorHighlight) model.Wire
+            
+        {model with Wire = newModel; UndoWireModels=(storePastWireData model.Wire model.UndoWireModels); RedoWireModels=[]}, Cmd.none
 
     /// **********************************************************************************************************************
     ///                                                       NOTE:

@@ -834,6 +834,23 @@ let viewCatalogue (model:Model) (dispatch:Dispatch<Msg>) =
                       ] [str "Example: [(port1, 2); (port2, 3)]"]
                     ]
                 ]
+                
+                //Error Highlighting
+                
+                div [ Style [PaddingTop "2.5vh"; Margin "0"; PaddingBottom "0"]][
+                          a [
+                              Style [
+                                  Height "3vh"
+                                  TextAnchor "middle" // horizontal algnment vs (X,Y)
+                                  DominantBaseline "middle" // vertical alignment vs (X,Y)
+                                  FontSize "1.6vh"
+                                  FontWeight "Bold"
+                                  Fill "Gray" // font color
+                              ]
+                              OnClick (fun _ -> dispatch (ErrorHighlight))
+                          ][str "ErrorHighlight"]
+                      ]     
+                
                 div [ Style [Width "100%"; Float FloatOptions.Left; PaddingTop "3vh"]]  [
                     div [ Style [PaddingTop "0.5vh"]][
                       text [ 

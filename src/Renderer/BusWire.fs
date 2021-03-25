@@ -49,6 +49,7 @@ type Msg =
     | PasteWires
     | SelectAll
     | SaveModel
+    | ErrorHighlight
 
 
 
@@ -688,6 +689,19 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | SaveModel ->
         let newSymbol, _ = Symbol.update (Symbol.Msg.SaveModel) model.Symbol
         {model with Symbol=newSymbol}, Cmd.none 
+    
+    | ErrorHighlight ->
+        //get the list of ports connected by wires
+        let conPortList =
+            model.WX 
+            |> List.collect (fun wire -> 
+                    [wire.SrcPort; wire.TargetPort]
+                )        
+                
+        //update the symbol model by highlighting the ports that are not connected in red
+        let newSymbol, _ = Symbol.update (Symbol.Msg.ErrorHighlightPorts conPortList) model.Symbol
+
+        {model with Symbol = newSymbol}, Cmd.none
 
 //------------------------------------------------------------------------//
 //-------------------------Other interface functions----------------------//

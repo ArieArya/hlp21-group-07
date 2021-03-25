@@ -74,6 +74,7 @@ module CommonTypes
             HostId : ComponentId
             Pos: XYPos
             Width: int option // must be option to deal with width inference
+            ErrorHighlight: bool
         } 
 
 

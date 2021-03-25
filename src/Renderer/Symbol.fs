@@ -64,6 +64,7 @@ type Msg =
     | ClearOriginCopiedId
     | SelectAllSymbols
     | SaveModel
+    | ErrorHighlightPorts of CommonTypes.Port List
 
 
 
@@ -257,6 +258,7 @@ let newPortTemplate
         HostId = hostId
         Pos = portPos inOrOut vertices numberOfPorts portNumber
         Width = busWidth //new field used to add bus width of ports
+        ErrorHighlight = false
     }
 
 /// Template for new Symbols
@@ -696,6 +698,41 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         |> List.map (fun sym -> 
             {sym with IsDragging=false; IsHovered=false; IsSelected=false}), Cmd.none
 
+    // highlights all the ports on symbols which are not connected to anything, in red
+    | ErrorHighlightPorts (conPortList: CommonTypes.Port List) ->
+        model
+        |> List.map (fun sym -> 
+            // update all ports in list to be error highlighted if not in connected port list
+            let updatePorts (portList: CommonTypes.Port List)= 
+                portList
+                |> List.map (fun port ->
+                        //check if each port of the symbol is in the connected port list
+                        let checkIfInPortList = 
+                            conPortList
+                            |> List.tryFind (fun unconPort -> unconPort.Id = port.Id)
+                            |> function 
+                                | Some x -> true
+                                | None -> false
+                        
+                        //if the port is not in the connected port list then set the errorhighlight to true
+                        if (checkIfInPortList) then                          
+                            port
+                        else
+                            {port with ErrorHighlight = true}
+                    )
+            // update all input ports in symbol to be error highlighted if in unconnected port list
+            let updatedInputPorts = 
+                sym.InputPorts 
+                |> updatePorts
+            
+            // update all output ports in symbol to be error highlighted if in unconnected port list
+            let updatedOutputPorts = 
+                sym.OutputPorts 
+                |> updatePorts
+
+            // update symbol with new updated ports       
+            {sym with InputPorts = updatedInputPorts; OutputPorts = updatedOutputPorts}
+           ), Cmd.none
 
 
 //------------------------------------------------------------------------//
@@ -875,6 +912,18 @@ let private renderShape =
                             portRadius, "#2f5e5e"
                         | _ -> 
                             portRadius, "none"
+                
+                let addErrorHighlightToColor = 
+                    if portType = CommonTypes.PortType.Input then
+                        if (props.Shape.InputPorts.[i].ErrorHighlight) then
+                            "red"
+                        else 
+                            portFill
+                    else
+                        if (props.Shape.OutputPorts.[i].ErrorHighlight) then
+                            "red"
+                        else
+                            portFill
 
                 // draws port in symbol
                 g[][circle [
@@ -885,8 +934,8 @@ let private renderShape =
                                 Cx props.Shape.OutputPorts.[i].Pos.X; 
                                 Cy props.Shape.OutputPorts.[i].Pos.Y;
                             R portRadius
-                            SVGAttr.Fill portFill
-                            SVGAttr.Stroke portFill
+                            SVGAttr.Fill addErrorHighlightToColor
+                            SVGAttr.Stroke addErrorHighlightToColor
                             SVGAttr.StrokeWidth 1
                         ][];
 
