@@ -538,7 +538,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                 else {wire with IsSelected=false})
 
         {model with WX=newWX; Symbol=newSymbol}, Cmd.none
-    | ToggleLegend -> //
+    | ToggleLegend ->
         let newWireModel = 
             (model.WX) 
             |> List.map (fun wire -> {wire with ShowLegend = not (wire.ShowLegend)})
