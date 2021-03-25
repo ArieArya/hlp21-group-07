@@ -278,10 +278,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | ChangeSelectedComponent comp ->
         {model with SelectedComponent = comp}, Cmd.none
-    (*
-    | UpdateComponent comp label
-        let updatedSymbol, _ =  
-*)
+    
+    | UpdateComponentLabel (comp, label) ->
+        // return updated model
+        let newModel, newCmd = 
+            Symbol.update (Symbol.Msg.UpdateComponentLabel (comp, label)) model.Wire.Symbol
+            
+        {model with Wire = {model.Wire with Symbol = newModel}}, newCmd
+
     // detects key presses from users
     | KeyPress s -> 
         match s with

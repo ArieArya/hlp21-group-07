@@ -65,7 +65,7 @@ type Msg =
     | SelectAllSymbols
     | SaveModel
     | ErrorHighlightPorts of CommonTypes.Port List
-
+    | UpdateComponentLabel of CommonTypes.Component * string
 
 
 //------------------------------------------------------------------------//
@@ -678,18 +678,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             else 
                 sym
             ), Cmd.none
-(*
-    | UpdateSymbol (compId, newLabel, newWidth, newLsBit, newConstVal) ->
-        model
-        |> List.map (fun sym -> 
-                        if sym.Id = compId then
-                            sym.Label = newLabel
-                            sym.Label = newLabel
-                            sym.Label = newLabel
-                            if sym.Type = Constant then
-                                sym.Label = newConstVal
-                    ), Cmd.none
-*)
+
     // Resets OriginCopiedId to 0 - used when copy-pasting symbols and wires
     | ClearOriginCopiedId ->
         model
@@ -747,6 +736,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             // update symbol with new updated ports       
             {sym with InputPorts = updatedInputPorts; OutputPorts = updatedOutputPorts}
            ), Cmd.none
+
+    | UpdateComponentLabel (comp, newLabel) ->
+        model
+        |> List.map (fun sym -> 
+                        if (unwrapCompId sym.Id) = comp.Id then
+                            {sym with Label=newLabel}
+                        else
+                            sym
+                    ), Cmd.none
 
 
 //------------------------------------------------------------------------//

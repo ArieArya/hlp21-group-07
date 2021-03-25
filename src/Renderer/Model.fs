@@ -107,6 +107,7 @@ type Msg =
     | CtrlKeyPress of KeyOp
     | ChangeRightTab of RightTab
     | ChangeSelectedComponent of CommonTypes.Component option
+    | UpdateComponentLabel of CommonTypes.Component * string
     | ErrorHighlight
     // This section is for handling user-defined parameters for Interface (replacing ISSIE)
     // for input and output

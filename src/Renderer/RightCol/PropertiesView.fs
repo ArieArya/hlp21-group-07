@@ -12,18 +12,6 @@ open Helpers
 open type CommonTypes.ComponentType
 
 
-let private textFormField isRequired name defaultValue onChange =
-    Field.div [] [
-        Label.label [] [ str name ]
-        Input.text [
-            Input.Props [ SpellCheck false; Name name; AutoFocus true; Style [ Width "200px"]]
-            Input.DefaultValue defaultValue
-            Input.Type Input.Text
-            Input.Placeholder (if isRequired then "Name (required)" else "Name (optional)")
-            Input.OnChange (onChange)
-        ] 
-    ]
-
 let details (comp:CommonTypes.Component) =
     match comp.Type with
         | Input _ -> str "Input"
@@ -87,56 +75,173 @@ let details (comp:CommonTypes.Component) =
                 the global clock"
             //makeMemoryInfo descr mem comp.Id model dispatch
 
-let numberOfBits = 5
+let private textFormField comp isRequired model dispatch =
+    div [ Style [PaddingTop "0.5vh"]][
+        input [   
+            Type "text"
+            Placeholder (if isRequired then "Name (required)" else "Name (optional)")
+            OnChange (fun ev -> dispatch (UpdateComponentLabel(comp, ev.Value)))
 
-let compName = 3
+            Style [
+                Width "50%"
+                FontSize "1.2vh"
+                Height "2.3vh"
+                TextAlign TextAlignOptions.Center
+            ]
+        ]
+    ]
 
+let private makeNumberOfBitsField (comp:CommonTypes.Component) (model:Model) (dispatch:Dispatch<Msg>) =
+    let title, width =
+        match comp.Type with
+        | Input w | Output w | NbitsAdder w | Register w -> "Number of bits", w
+        | SplitWire w -> "Number of bits in the top (LSB) wire", w
+        | BusSelection( w, _) -> "Number of bits selected: width", w
+        | Constant(w, _) -> "Number of bits in the wire", w
+        | c -> failwithf "makeNumberOfBitsField called with invalid component: %A" c
+
+    div [ Style [PaddingTop "3vh"; Margin "2vh"]][
+        text [ 
+            Style [
+                TextAnchor "middle" 
+                DominantBaseline "middle" 
+                FontSize "2.3vh"
+                FontWeight "Bold"
+                Fill "Gray" 
+            ]
+        ] [str $"{title}"]
+        br []
+        input [   
+            Type "number"
+            Placeholder $"{width}"
+            OnChange (fun ev -> 
+                if (int ev.Value < 1) then dispatch (ChangeInputWidth(1))
+                else dispatch (ChangeInputWidth(int ev.Value)))
+
+            Style [
+                Width "50%"
+                FontSize "1.2vh"
+                Height "2.3vh"
+                TextAlign TextAlignOptions.Center
+            ]
+        ]
+    ]
+
+let private makeLsbBitNumberField (comp:CommonTypes.Component) (model:Model) (dispatch:Dispatch<Msg>) =
+    let lsbPos, infoText =
+        match comp.Type with
+        | BusSelection(width,lsb) -> uint32 lsb, "Least Significant Bit number selected: lsb"
+        | _ -> failwithf "makeLsbBitNumberfield called from %A" comp.Type
+
+    div [ Style [PaddingTop "0.5vh"]][
+        input [   
+            Type "number"
+            Placeholder $"{lsbPos}"
+            OnChange (fun ev -> 
+                if (int ev.Value < 1) then dispatch (ChangeBusSelectionLSB(1))
+                else dispatch (ChangeBusSelectionLSB(int ev.Value)))
+
+            Style [
+                Width "50%"
+                FontSize "1.2vh"
+                Height "2.3vh"
+                TextAlign TextAlignOptions.Center
+            ]
+        ]
+    ]
+
+let private makeConstantValueField (comp:CommonTypes.Component) (model:Model) (dispatch:Dispatch<Msg>) =
+    let cVal, width =
+        match comp.Type with 
+        | Constant(width,cVal) -> cVal, width
+        | _ -> failwithf "makeConstantValuefield called from %A" comp.Type
+    
+    div [ Style [PaddingTop "0.5vh"]][
+        input [   
+            Type "number"
+            Placeholder $"{cVal}"
+            OnChange (fun ev -> 
+                if (int ev.Value > 32) then dispatch (ChangeConstantValue(32))
+                else dispatch (ChangeConstantValue(int ev.Value)))
+
+            Style [
+                Width "50%"
+                FontSize "1.2vh"
+                Height "2.3vh"
+                TextAlign TextAlignOptions.Center
+            ]
+        ]
+    ]
+
+let private makeExtraInfo (comp:CommonTypes.Component) (model:Model) (dispatch:Dispatch<Msg>) =
+    match comp.Type with
+    | Input _ | Output _ | NbitsAdder _ | SplitWire _ | Register _ ->
+        makeNumberOfBitsField comp model dispatch
+    | BusSelection _ ->
+        div [] [
+            makeNumberOfBitsField comp model dispatch
+            makeLsbBitNumberField comp model dispatch
+            ]
+    | Constant _ ->
+        div [] [
+             makeNumberOfBitsField comp model dispatch
+             makeConstantValueField comp model dispatch
+             ]
+    | _ -> div [] []
 
 let viewProperties (model:Model) (dispatch:Dispatch<Msg>) =
         dispatch (ChangeSelectedComponent (findSelectedSymbol model.Wire.Symbol))
-        div [ Style [Height "100%"; Width "100%"; TextAlign TextAlignOptions.Center; PaddingBottom "5vh"]]
-            [
-                // module selection title
-                div [ Style [PaddingTop "5vh"]][
-                      text [ 
-                          Style [
+        div [ Style [Height "100%"; Width "100%"; TextAlign TextAlignOptions.Center; PaddingBottom "5vh"]][
+            // module selection title
+            div [ Style [PaddingTop "5vh"]][
+                  text [ 
+                      Style [
+                          TextAnchor "middle" 
+                          DominantBaseline "middle" 
+                          FontSize "3vh"
+                          FontWeight "Bold"
+                          Fill "Gray" 
+                      ]
+                  ] [str "Component Properties"]
+            ]
+            match model.SelectedComponent with
+            | None -> 
+                div [ Style [PaddingTop "2vh"; TextAlign TextAlignOptions.Center; FontSize "1.8vh"]] 
+                    [str "Select a Symbol to See Details and Change Values"]    
+            | Some comp ->
+                div [ Style [PaddingTop "3vh"; Margin "2vh"]][
+                    text [ 
+                        Style [
+                            TextAnchor "middle" 
+                            DominantBaseline "middle" 
+                            FontSize "2.3vh"
+                            FontWeight "Bold"
+                            Fill "Gray" 
+                        ]
+                    ] [str "Details:"]
+                    text [ 
+                        Style [
                               TextAnchor "middle" 
                               DominantBaseline "middle" 
-                              FontSize "3vh"
-                              FontWeight "Bold"
-                              Fill "Gray" 
-                          ]
-                      ] [str "Component Properties"]
+                              FontSize "1.8vh"
+                              FontWeight "Normal"
+                              Fill "Gray"
+                              Padding "0.5vh" 
+                        ]
+                    ] [details comp]
                 ]
-                match model.SelectedComponent with
-                | None -> 
-                    div [ Style [PaddingTop "2vh"; TextAlign TextAlignOptions.Center; FontSize "1.8vh"]] 
-                        [str "Select a Symbol to See Details and Change Values"]    
-                | Some comp ->
-                    div [ Style [PaddingTop "3vh"; Margin "2vh"]][
-                        text [ 
-                            Style [
-                                TextAnchor "middle" 
-                                DominantBaseline "middle" 
-                                FontSize "2.3vh"
-                                FontWeight "Bold"
-                                Fill "Gray" 
-                            ]
-                        ] [str "Details:"]
-                        text [ 
-                            Style [
-                                  TextAnchor "middle" 
-                                  DominantBaseline "middle" 
-                                  FontSize "1.8vh"
-                                  FontWeight "Normal"
-                                  Fill "Gray"
-                                  Padding "0.5vh" 
-                            ]
-                        ] [details comp]
-                    ]    (* 
-                    let required = match comp.Type with | SplitWire _ | MergeWires | BusSelection _ -> false | _ -> true
-                    textFormField required "Component Name" comp.Label (fun text -> 
-                        dispatch (ChangeComponentDetails)
-                        //setComponentLabel model comp (formatLabel comp text)
-                        ) *)
+                makeExtraInfo comp model dispatch
+                let required = match comp.Type with | SplitWire _ | MergeWires | BusSelection _ -> false | _ -> true
+                div [ Style [PaddingTop "3vh"; Margin "2vh"]][
+                    text [ 
+                        Style [
+                            TextAnchor "middle" 
+                            DominantBaseline "middle" 
+                            FontSize "2.3vh"
+                            FontWeight "Bold"
+                            Fill "Gray" 
+                        ]
+                    ] [str "Component Name:"]
+                    textFormField comp required model dispatch 
+                ]
             ]
