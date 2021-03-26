@@ -12,8 +12,18 @@ open type CommonTypes.ComponentType
 //------------------------------Sheet Types-------------------------------//
 //------------------------------------------------------------------------//
 
+
+
+/// **********************************************************************************************************************
+///                                                       NOTE:
+/// 
+///                  CompInfo is used to take and store user-defined input parameters (e.g. port widths, custom 
+///                  component labels, etc.) for demo purposes only. This is used to replace the ISSIE interface 
+///                  for the demo (to allow user-defined modules).
+///
+/// **********************************************************************************************************************
 type CompInfo = {
-    // --------------- This section is for the interface (replacing ISSIE) ------------
+    
     // for input and output
     InputWidth: int
     OutputWidth: int
