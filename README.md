@@ -48,7 +48,9 @@ Each external function is described below:
   <li><p><b>extractWires: </b>extracts the list of wires from the model and converts them to a list of their connection types.</p></li>
 </ul>
 
-## Summary of Demo Features and Functionality
+<br><br>
+
+# Summary of Demo Features and Functionality
 This section describes and demonstrates the primary features implemented in the Draw2D canvas. The RHS column provided by the canvas, though not part of the actual Draw2D canvas implementation, provides an easy interface for user-defined inputs to test the different functionalities defined in the project.
 
 ### 1. Canvas
