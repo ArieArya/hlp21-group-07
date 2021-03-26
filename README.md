@@ -2,6 +2,9 @@
 
 ## Introduction
 This project aims to create an interactive schematic drawing canvas to replace the canvas used in Issie, an open-source digital circuit design and simulation developed by Tom Clarke. The project is split into three key modules: Symbol, BusWire, and Sheets - each implementing a distinct functionality. Each module is briefly described in the sections below, with their interfaces detailed in their corresponding markdown files.
+```F#
+In order to run do ./build in the repo.
+```
 
 ## Interfaces
 The interface functions and detailed description of functionalities in each module can be found in their corresponding markdown files:

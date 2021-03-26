@@ -214,28 +214,12 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                 ]
             div [rightColumnStyle]
                 [
-                    div [ Style [Height "100%"; TextAlign TextAlignOptions.Center]][ 
+                    div [ Style [Height "100%"]][ 
                         div [ Style [PaddingTop "0vh"; Margin "0"; PaddingBottom "0"]][
                             button [
-                                Style [
-                                    Height "4vh"
-                                    Width "50%"
-                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
-                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                    FontSize "1.8vh"
-                                    Fill "Gray" // font color
-                                ]
                                 OnClick (fun _ -> dispatch (ChangeRightTab Catalogue))
                             ][str "Catalogue"]
                             button [
-                                Style [
-                                    Height "4vh"
-                                    Width "50%"
-                                    TextAnchor "middle" // horizontal algnment vs (X,Y)
-                                    DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                    FontSize "1.8vh"
-                                    Fill "Gray" // font color
-                                ]
                                 OnClick (fun _ -> dispatch (ChangeRightTab Properties))
                             ][str "Properties"]
                             match model.RightPaneTabVisible with
