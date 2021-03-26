@@ -214,26 +214,28 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                 ]
             div [rightColumnStyle]
                 [
-                    div [ Style [Height "100%"; TextAlign TextAlignOptions.Center]][ 
+                    div [ Style [Height "100%"]][ 
                         div [ Style [PaddingTop "0vh"; Margin "0"; PaddingBottom "0"]][
                             button [
                                 Style [
-                                    Height "4vh"
-                                    Width "50%"
+                                    Height "3vh"
+                                    Width "25%"
                                     TextAnchor "middle" // horizontal algnment vs (X,Y)
                                     DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                    FontSize "1.8vh"
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
                                     Fill "Gray" // font color
                                 ]
                                 OnClick (fun _ -> dispatch (ChangeRightTab Catalogue))
                             ][str "Catalogue"]
                             button [
                                 Style [
-                                    Height "4vh"
-                                    Width "50%"
+                                    Height "3vh"
+                                    Width "25%"
                                     TextAnchor "middle" // horizontal algnment vs (X,Y)
                                     DominantBaseline "middle" // vertical alignment vs (X,Y)
-                                    FontSize "1.8vh"
+                                    FontSize "1.5vh"
+                                    FontWeight "Bold"
                                     Fill "Gray" // font color
                                 ]
                                 OnClick (fun _ -> dispatch (ChangeRightTab Properties))
@@ -607,7 +609,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             let newSymbol, _ = 
                 let hoverCheck, _ = 
                     Symbol.update (Symbol.Msg.SymbolHovering pos) model.Wire.Symbol
-                    
+
                 // checking if symbol overlaps any other symbol in model and checking if hovering over symbol
                 Symbol.update Symbol.Msg.SymbolOverlap hoverCheck 
 

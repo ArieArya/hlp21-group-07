@@ -110,7 +110,17 @@ type Msg =
     | UpdateComponentLabel of CommonTypes.Component * string
     | UpdateComponentWidth of CommonTypes.Component * int
     | ErrorHighlight
-    // This section is for handling user-defined parameters for Interface (replacing ISSIE)
+    
+    /// **********************************************************************************************************************
+    ///                                                       NOTE:
+    /// 
+    ///                  The messages below are NOT part of the Draw2D canvas implementation. It is used to take
+    ///                  user-defined input parameters (e.g. port widths, custom component labels, etc.) for demo
+    ///                  purposes only. This is used to replace the ISSIE interface for the demo (to allow user-
+    ///                  defined modules).
+    ///
+    /// **********************************************************************************************************************
+    
     // for input and output
     | ChangeInputWidth of int
     | ChangeOutputWidth of int
