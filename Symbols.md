@@ -1,4 +1,4 @@
-# Symbols Interface
+# Symbols Interface Documentation
 The main purpose of Symbols is to create a view function for all the symbols listed in the ISSIE components. The main types and interfaces used in Symbol.fs is described in the corresponding sections below.
 
 ## Model State
