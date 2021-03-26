@@ -44,7 +44,6 @@ type Msg =
     | BoxSelected of XYPos * XYPos * bool
     | ToggleLegend
     | DeleteWiresBySymbol
-    | SelectWiresFromSymbol
     | CopyWires
     | PasteWires
     | SelectAll
@@ -593,18 +592,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | MouseMsg (mMsg, isCtrlPressed) -> 
         handleMouseForWires model mMsg isCtrlPressed, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
-
-    | SelectWiresFromSymbol ->
-        let newWX = 
-            model.WX
-            |> List.map (fun wire -> 
-                            let isSrcPortHostSelected = Symbol.isSymbolSelected (model.Symbol) (wire.SrcPort.HostId)
-                            let isTargetPortHostSelected = Symbol.isSymbolSelected (model.Symbol) (wire.TargetPort.HostId)
-
-                            if isSrcPortHostSelected && isTargetPortHostSelected then {wire with IsSelected = true}
-                            else wire)
-        
-        {model with WX=newWX}, Cmd.none
 
 
     | CopyWires -> 
