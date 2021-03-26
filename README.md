@@ -11,7 +11,7 @@ The interface functions and detailed description of functionalities in each modu
   <li><a href="/Sheets.md">Sheet</a></li>
 </ul>
 
-## External Interfaces
+## External Interfaces to ISSIE
 The following external interfaces are provided for ISSIE:
 
 ### Interface from Symbols
