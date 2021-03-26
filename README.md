@@ -136,9 +136,7 @@ Wire annotations can be toggled on or off by the user
 
 ### 19. Symbol Overlap
 When symbols overlap, their bounding boxes are shown to indicate their borders and which symbol is on top.
-<p align="center">
-  <img src="/img/toggle-legend.gif" width="60%">
-</p>
+
 
 ### 20. Error Highlighting
 Users can toggle to perform error highlighting of ports that have not been connected. This is required before using the Issie 'waveform' feature to ensure the ports of all symbols are connected before the simulation.
