@@ -1,4 +1,4 @@
-
+# BusWire Interface Documentation
 
 ## Message Functions
 Message functions in BusWire are used to handle incoming messages from the upper layer module Sheets and to correspondingly update its model. BusWire provides both message functions for the upper level Sheets, but also utilizes message & interface functions from the lower level module Symbols. These message functions are described below:
