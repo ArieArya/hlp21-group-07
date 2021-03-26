@@ -623,7 +623,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         
     | ErrorHighlight ->
         // return updated model
-        let newModel, newCmd = 
+        let newModel, _ = 
             BusWire.update (BusWire.Msg.ErrorHighlight) model.Wire
             
         {model with Wire = newModel; UndoWireModels=(storePastWireData model.Wire model.UndoWireModels); RedoWireModels=[]}, Cmd.none

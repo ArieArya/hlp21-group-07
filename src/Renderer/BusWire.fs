@@ -511,11 +511,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | AddWire (port1, port2) -> 
         match port1.Width with
         | Some portWidth ->
+            // get new symbol model with error highlighting disabled
+            let newSymbol = Symbol.removeErrorHighlight model.Symbol
+
             let srcPortPos = port1.Pos
             let targetPortPos = port2.Pos
             let wirePoints = getInitialWirePoints (model.Symbol) srcPortPos targetPortPos
             let newWire = makeWireFromPorts (port1) (port2) wirePoints (portWidth) (model.WX)
-            {model with WX=List.append model.WX [newWire]}, Cmd.none
+            {model with WX=List.append model.WX [newWire]; Symbol=newSymbol}, Cmd.none
         | None ->
             model, Cmd.none
 
