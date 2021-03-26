@@ -235,6 +235,21 @@ let checkIfSymbolsOverlap (symModel: Model) (sym1: Symbol) : bool =
 // obtains the string from the component id
 let unwrapCompId (CommonTypes.ComponentId x) = x
 
+// remove error highlighting from all ports
+let removeErrorHighlight (symModel: Model) = 
+    symModel
+    |> List.map (fun sym -> 
+                    let newInpPorts = 
+                        sym.InputPorts
+                        |> List.map (fun port -> {port with ErrorHighlight = false})
+
+                    let newOutPorts = 
+                        sym.OutputPorts
+                        |> List.map (fun port -> {port with ErrorHighlight = false})
+
+                    {sym with InputPorts=newInpPorts; OutputPorts=newOutPorts})
+
+
 //--------------------------------------------------------------------//
 //---------------------Skeleton Message type for symbols------------------//
 //------------------------------------------------------------------------//
@@ -398,11 +413,17 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
     // Adds new symbol to model
     | AddSymbol (comptype, pos, compName) -> 
-        createNewSymbol comptype compName pos model [] :: model, Cmd.none
+        // reset all symbol to remove error highlighting
+        let newModel = removeErrorHighlight model
+            
+        createNewSymbol comptype compName pos model [] :: newModel, Cmd.none
 
     // Deletes symbol from model
     | DeleteSymbol -> 
-        List.filter (fun sym -> not sym.IsSelected) model, Cmd.none
+        // reset all symbol to remove error highlighting
+        let newModel = removeErrorHighlight model
+
+        List.filter (fun sym -> not sym.IsSelected) newModel, Cmd.none
 
     // Begin dragging symbol in model
     | StartDragging (sId, pagePos) ->
@@ -621,6 +642,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
     // Duplicate symbols with isCopied=true (with its own unique ID)
     | PasteSymbols pasteMargin ->
+        // reset all symbol to remove error highlighting
+        let newModel = removeErrorHighlight model
+
         // recursively create new symbols - recursion is required to automatically number symbols
         let rec getNewModel (curModel: Model) (newComponents: Symbol List) = 
             match curModel with
@@ -652,7 +676,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             | (sym::tl) -> sym::(getNewModel tl newComponents)
             | [] -> []
 
-        getNewModel model [], Cmd.none
+        getNewModel newModel [], Cmd.none
 
     // Marks all symbols clicked (while ctrl is pressed) to IsSelected=true
     | ClickSymbol (mousePos, isCtrlPressed) -> 
@@ -692,7 +716,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     // When user performs an action, the previous model is saved (for undo purposes) 
     // All symbol settings (IsDragging, IsHovered, IsSelected) is reset
     | SaveModel ->
-        model
+        // reset all symbol to remove error highlighting
+        let newModel = removeErrorHighlight model
+
+        newModel
         |> List.map (fun sym -> 
             {sym with IsDragging=false; IsHovered=false; IsSelected=false}), Cmd.none
 
@@ -701,10 +728,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         model
         |> List.map (fun sym -> 
             // update all ports in list to be error highlighted if not in connected port list
-            let updatePorts (portList: CommonTypes.Port List)= 
+            let updatePorts (portList: CommonTypes.Port List) = 
                 portList
                 |> List.map (fun port ->
-                        //check if each port of the symbol is in the connected port list
+                        // check if each port of the symbol is in the connected port list
                         let checkIfInPortList = 
                             conPortList
                             |> List.tryFind (fun unconPort -> unconPort.Id = port.Id)
@@ -712,10 +739,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                                 | Some x -> true
                                 | None -> false
 
-                        //store the current value of error highlight bool for the port
+                        // store the current value of error highlight bool for the port
                         let firstErrorHighlight = port.ErrorHighlight
 
-                        //if the port is not in the connected port list then set the errorhighlight to true
+                        // if the port is not in the connected port list then set the errorhighlight to true
                         if (checkIfInPortList) then                          
                             port
                         else
