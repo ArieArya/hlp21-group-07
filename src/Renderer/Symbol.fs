@@ -1692,6 +1692,8 @@ let extractComponentType (comp: CommonTypes.Component) : CommonTypes.ComponentTy
 
 //------------------------------------------------------------------------//
 //---------------------------For Properties View--------------------------//
+//------------------------------------------------------------------------//
+
 let findSelectedSymbol (symModel: Model) : CommonTypes.Component option = 
     let selcomp = 
         symModel
