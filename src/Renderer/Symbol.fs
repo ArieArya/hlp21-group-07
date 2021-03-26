@@ -592,31 +592,21 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | SymbolHovering pos ->
         model
         |> List.map (fun sym ->
-            if (posInSymbol sym pos) then // checks if the position is in the symbol
-                { sym with
-                    IsHovered = true
-                }
-            else
-                { sym with
-                    IsHovered = false 
-                }
-        )
+                        let isPositionInSymbol = 
+                            posInSymbol sym pos // checks if the position is in the symbol
+                        { sym with IsHovered = isPositionInSymbol}
+                    )
         , Cmd.none  
 
     // Mark all symbols that overlap as IsOverlapped = true
     | SymbolOverlap ->
         model
         |> List.map (fun sym ->
-            if (checkIfSymbolsOverlap model sym) then //check if the symbols overlap
-                { sym with
-                    IsOverlapped = true
-                }
-            else
-                { sym with
-                    IsOverlapped = false 
-                }
-        )
-        , Cmd.none
+                        let doSymbolsOverlap = 
+                            checkIfSymbolsOverlap model sym //check if the symbols overlap
+                        { sym with IsOverlapped = doSymbolsOverlap}
+            )
+            , Cmd.none
 
     // Set the corresponding expanded port as the value of ExpandedPorts. This is used for Wire Dragging, in
     // which if an output port is dragged, input ports with the same bus width will be expanded to indicate 
@@ -635,12 +625,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     // Mark all selected symbols (i.e. IsSelected=true) to isCopied=true
     | CopySymbols ->
         model 
-        |> List.map (fun sym ->
-                        if sym.IsSelected then 
-                            {sym with IsCopied = true}
-                        else 
-                            {sym with IsCopied = false}
-                        ), Cmd.none
+        |> List.map (fun sym -> 
+                        {sym with IsCopied = sym.IsSelected}
+                    ), Cmd.none
 
     // Duplicate symbols with isCopied=true (with its own unique ID)
     | PasteSymbols pasteMargin ->
@@ -695,10 +682,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         model
         |> List.map (fun sym ->
             if isCtrlPressed && (isSymbolClicked sym) then 
-                if sym.IsSelected then 
-                    {sym with IsSelected=false}
-                else 
-                    {sym with IsSelected=true}
+                {sym with IsSelected= not sym.IsSelected}
             else 
                 sym
             ), Cmd.none
