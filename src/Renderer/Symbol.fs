@@ -622,7 +622,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                             {sym with ExpandedPort = (Some portType, portWidth)}
                     ), Cmd.none
     
-    // Mark all selected symbols (i.e. IsSelected=true) to isCopied=true
+    // Marks all selected symbols (i.e. IsSelected=true) to isCopied=true
     | CopySymbols ->
         model 
         |> List.map (fun sym -> 
@@ -699,8 +699,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         |> List.map (fun sym -> 
             {sym with IsSelected=true}), Cmd.none
 
-    // When user performs an action, the previous model is saved (for undo purposes) 
-    // All symbol settings (IsDragging, IsHovered, IsSelected) is reset
+    // When the user performs an action, the previous model is saved (for undo purposes) 
+    // All symbol settings (IsDragging, IsHovered, IsSelected) are reset
     | SaveModel ->
         // reset all symbol to remove error highlighting
         let newModel = removeErrorHighlight model
@@ -709,7 +709,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         |> List.map (fun sym -> 
             {sym with IsDragging=false; IsHovered=false; IsSelected=false}), Cmd.none
 
-    // highlights all the ports on symbols which are not connected to anything, in red
+    // Highlights all the ports on symbols which are not connected to anything, in red. 
+    //And these highlights can be toggled on and off on successive calls of the message.
     | ErrorHighlightPorts (conPortList: CommonTypes.Port List) ->
         model
         |> List.map (fun sym -> 
@@ -748,7 +749,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             {sym with InputPorts = updatedInputPorts; OutputPorts = updatedOutputPorts}
            ), Cmd.none
 
-    //updates the label for a given symbol
+    //Updates the label of a given symbol
     | UpdateComponentLabel (comp, newLabel) ->
         model
         |> List.map (fun sym -> 
@@ -758,7 +759,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                             sym
                     ), Cmd.none
 
-    //updates the width for a given symbol
+    //Updates the width of a given symbol
     | UpdateComponentWidth (comp, newWidth) ->
         model
         |> List.map (fun sym -> 
@@ -1222,7 +1223,7 @@ let view (model : Model) (dispatch : Msg -> unit) =
 //-------------------------Other interface functions----------------------//
 //------------------------------------------------------------------------//
 
-// returns a list of vertices from top left, clockwise to bottom left
+// Returns a list of vertices for the given symbols bounding box from top left, clockwise to bottom left.
 let symbolBoundingBox (symModel: Model) (sId: CommonTypes.ComponentId) : XYPos List =
     List.find (fun sym -> sym.Id = sId) symModel
     |> (fun sym -> 
@@ -1596,7 +1597,7 @@ let variablePortReset (symModel: Model) (port: CommonTypes.Port) : Model =
             sym)
                             
 /// Determines if a port belongs to a symbol
-let doesPortBelongToSymbol (portId: string) (symbol: Symbol) = 
+let doesPortBelongToSymbol (portId: string) (symbol: Symbol) : bool = 
     let sameId (id: string) (port: CommonTypes.Port) = 
         id = port.Id 
     List.exists (sameId portId) (symbol.InputPorts) || List.exists (sameId portId) (symbol.OutputPorts)
@@ -1704,6 +1705,7 @@ let extractComponentType (comp: CommonTypes.Component) : CommonTypes.ComponentTy
 //---------------------------For Properties View--------------------------//
 //------------------------------------------------------------------------//
 
+// Trys to find the selected symbol in the model and converts it to a component type, returning a component option
 let findSelectedSymbol (symModel: Model) : CommonTypes.Component option = 
     let selcomp = 
         symModel
