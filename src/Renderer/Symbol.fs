@@ -15,6 +15,7 @@ type Symbol =
     {
         Pos: XYPos
         LastDragPos : XYPos
+        IsNew: bool
         IsDragging : bool
         IsSelected: bool
         IsHovered: bool
@@ -293,6 +294,7 @@ let newSymbolTemplate
     {
         Pos = pos
         LastDragPos = {X=0. ; Y=0.} 
+        IsNew = true
         IsDragging = false 
         IsSelected = false
         IsHovered = false
@@ -395,12 +397,16 @@ let init () =
     [], Cmd.none
 
 /// Update function to update Symbol models
-let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
+let rec update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     match msg with
 
     // Adds new symbol to model
     | AddSymbol (comptype, pos, compName) -> 
-        createNewSymbol comptype compName pos model [] :: model, Cmd.none
+        let newModel: Model = 
+            createNewSymbol comptype compName pos model [] :: model 
+        newModel
+        |> update (StartDragging (newModel.Head.Id, pos))
+        //, Cmd.none
 
     // Deletes symbol from model
     | DeleteSymbol -> 
@@ -539,7 +545,35 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         ), Cmd.none
 
     // Unused Mouse Messages
-    | MouseMsg _ -> model, Cmd.none 
+    | MouseMsg mMsg ->
+        printfn "move" 
+        let newModel, newCmd = 
+            let newSymbol = 
+                model
+                |> List.tryFind (fun sym -> sym.IsNew)
+            
+            match newSymbol with
+                | Some sym ->
+                    match mMsg.Op with 
+                    | Up ->
+                        printfn "up"
+                        update (EndDragging (sym.Id)) model
+                    | Down ->
+                        printfn "down"
+                        update (EndDragging (sym.Id)) model
+                    | Move ->
+                        printfn "move"
+                        update (Dragging (sym.Id, mMsg.Pos)) model
+                        //update (Dragging (sym.Id, mMsg.Pos)) model
+                    | _->
+                        printfn "other"
+                        update (StartDragging (sym.Id, mMsg.Pos)) model
+                | None ->
+                    model, Cmd.none
+       
+        newModel, newCmd
+    //model, Cmd.none 
+
 
     // Mark all symbols covered by the mouse select box as IsSelected = true
     | BoxSelected (pos1, pos2, isCtrlPressed) ->
@@ -1597,6 +1631,7 @@ let updateSymbolModelWithComponent (symModel: Model) (comp:CommonTypes.Component
             {
                 Pos = pos
                 LastDragPos = {X=0. ; Y=0.}
+                IsNew = false
                 IsDragging = false
                 IsSelected = false
                 IsHovered = false

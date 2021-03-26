@@ -578,8 +578,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with WX = newWX; Symbol=newSymbolModel}, Cmd.none
 
     | MouseMsg (mMsg, isCtrlPressed) -> 
-        handleMouseForWires model mMsg isCtrlPressed, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
-
+        let newSymbolModel, _ = Symbol.update (Symbol.Msg.MouseMsg mMsg) model.Symbol
+        //handleMouseForWires model mMsg isCtrlPressed, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
+        {model with Symbol = newSymbolModel}, Cmd.none
     | SelectWiresFromSymbol ->
         let newWX = 
             model.WX
