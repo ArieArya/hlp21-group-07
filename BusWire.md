@@ -43,3 +43,18 @@ The interface used by BusWire from the Symbols module is shown below:
 symbolPortPos: Model -> string(Port.Id) : XYPos
 ```
 This interface is used during the deletion of symbols so it can delete all stray wires from the deleted symbols. By identifying symbols that are currently selected (i.e. isSelected = true), all wires connected to this symbol can be subsequently deleted.
+
+## Issie Interface Functions
+Interface functions are used to interface with Issie and convert between Wire and Connection types and vice versa. The main Issie interface functions used are shown below:
+```F#
+wireToConnection (wire: Wire) : CommonTypes.Connection
+updateWireModelWithConnection (wModel: Model) (conn:CommonTypes.Connection): Model
+extractWire (wModel: Model) (wId:CommonTypes.ConnectionId) : CommonTypes.Connection
+extractWires (wModel: Model) : CommonTypes.Connection list
+```
+<ul>
+  <li><b>symToComp: </b>converts the given Wire into a connection type, which is used in Issie</li>
+  <li><b>updateWireModelWithConnection: </b>Update the wire with matching connectionId to new connection, or add the new connection</li>
+  <li><b>extractWire: </b>extracts the wire of the given connection id from the model and converts it to a connection type before returning</li>
+  <li><b>extractWires: </b>extracts the list of wires from the model and converts them to the connection type, returning a list of connections</li>
+</ul>
