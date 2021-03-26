@@ -136,6 +136,9 @@ Wire annotations can be toggled on or off by the user
 
 ### 19. Symbol Overlap
 When symbols overlap, their bounding boxes are shown to indicate their borders and which symbol is on top.
+<p align="center">
+  <img src="/img/symb-overlap.gif" width="60%">
+</p>
 
 
 ### 20. Error Highlighting
