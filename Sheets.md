@@ -101,6 +101,7 @@ BusWire.Msg.ToggleLegend
 BusWire.MouseMsg of MouseT * bool
 BusWire.Msg.BoxSelected of XYPos * XYPos * bool
 BusWire.Msg.SaveModel
+BusWire.Msg.ErrorHighlight
 ```
 The description of each message is shown below:
 <ul>
@@ -113,6 +114,7 @@ The description of each message is shown below:
   <li><p><b>MouseMsg: </b>this passes on mouse messages from the users (Up, Down, Drag, Move) to the BusWire module, used primarily for manual re-routing.</p></li>
   <li><p><b>BoxSelected: </b>selects all wires whose two ports lie inside a dragbox (defined by two corner points). The bool represents "IsCtrlPressed". If Ctrl is pressed, all other wires that are selected remain selected, otherwise all other wires will be unselected.</p></li>
   <li><p><b>SaveModel: </b>in order to save the previous model to UndoWireModels, all wires and symbols must be set to IsSelected=false, IsCopied=false, IsDragging=false. This message performs this action to avoid bugs and allow for a neater undo / redo implementation.</p></li>
+  <li><p><b>ErrorHighlight: </b>highlights all ports that are not connected by a wire to red (i.e. indicates all ports that should be connected in the circuit before using ISSIE's waveform feature to prevent error).</p><li>
 </ul>
 
 ### Message Functions from Symbol utilized by Sheets
