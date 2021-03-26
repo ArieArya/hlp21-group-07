@@ -117,6 +117,7 @@ When automatic routing, wires attempt to avoid symbols. This is especially impor
 </p>
 
 ### 16. Curved Wires
+Wires have curved corners, as shown below.
 <p align="center">
   <img src="/img/curved-wires.PNG" width="35%">
 </p>
@@ -137,4 +138,10 @@ Wire annotations can be toggled on or off by the user
 When symbols overlap, their bounding boxes are shown to indicate their borders and which symbol is on top.
 <p align="center">
   <img src="/img/toggle-legend.gif" width="60%">
+</p>
+
+### 20. Error Highlighting
+Users can toggle to perform error highlighting of ports that have not been connected. This is required before using the Issie 'waveform' feature to ensure the ports of all symbols are connected before the simulation.
+<p align="center">
+  <img src="/img/toggle-error.gif" width="60%">
 </p>
