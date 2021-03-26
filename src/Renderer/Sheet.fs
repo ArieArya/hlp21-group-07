@@ -600,7 +600,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             let newSymbol, _ = 
                 let hoverCheck, _ = 
                     Symbol.update (Symbol.Msg.SymbolHovering pos) model.Wire.Symbol
-                //checking if symbol overlaps any other symbol in model and checking if hovering over symbol
+                    
+                // checking if symbol overlaps any other symbol in model and checking if hovering over symbol
                 Symbol.update Symbol.Msg.SymbolOverlap hoverCheck 
 
             // move wire alongside its corresponding ports if symbol moved
