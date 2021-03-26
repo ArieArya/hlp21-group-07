@@ -11,7 +11,46 @@ The interface functions and detailed description of functionalities in each modu
   <li><a href="/Sheets.md">Sheet</a></li>
 </ul>
 
-## Summary of Demo Features and Functionality
+## External Interfaces to ISSIE
+The following external interfaces are provided for ISSIE:
+
+### Interface from Symbols
+These interfaces include:
+```F#
+updateSymbolModelWithComponent (symModel: Model) (comp:CommonTypes.Component) : Model
+symToComp (sym: Symbol) : CommonTypes.Component
+extractComponent (symModel: Model) (sId:CommonTypes.ComponentId) : CommonTypes.Component
+extractComponents (symModel: Model) : CommonTypes.Component list
+extractComponentType (comp: CommonTypes.Component) : CommonTypes.ComponentType
+```
+Each external function is described below:
+<ul>
+  <li><p><b>updateSymbolModelWithComponent: </b>update the symbol with matching componentId to a new component, or add a new symbol based on the new component.</p></li>
+  <li><p><b>symToComp: </b>converts the symbol to a component type, which may be used in Issie.</p></li>
+  <li><p><b>extractComponent: </b>extracts the symbol from the model and converts it to a component type.</p></li>
+  <li><p><b>extractComponents: </b>extracts the list of symbols from the model and converts them to a list of their component types.</p></li>
+  <li><p><b>extractComponentType: </b>extracts component type from a component.</p></li>
+</ul>
+
+### Interface from BusWire
+These interfaces include:
+```F#
+wireToConnection (wire: Wire) : CommonTypes.Connection
+updateWireModelWithConnection (wModel: Model) (conn:CommonTypes.Connection): Model
+extractWire (wModel: Model) (wId:CommonTypes.ConnectionId) : CommonTypes.Connection
+extractWires (wModel: Model) : CommonTypes.Connection list
+```
+Each external function is described below:
+<ul>
+  <li><p><b>wireToConnection: </b>converts a wire to a CommonTypes connection.</p></li>
+  <li><p><b>updateWireModelWithConnection: </b>Update the wire with matching connectionId to new connection, or add the new connection.</p></li>
+  <li><p><b>extractWire: </b>extracts connection based on the connection id.</p></li>
+  <li><p><b>extractWires: </b>extracts the list of wires from the model and converts them to a list of their connection types.</p></li>
+</ul>
+
+<br><br>
+
+# Summary of Demo Features and Functionality
 This section describes and demonstrates the primary features implemented in the Draw2D canvas. The RHS column provided by the canvas, though not part of the actual Draw2D canvas implementation, provides an easy interface for user-defined inputs to test the different functionalities defined in the project.
 
 ### 1. Canvas
@@ -117,6 +156,7 @@ When automatic routing, wires attempt to avoid symbols. This is especially impor
 </p>
 
 ### 16. Curved Wires
+Wires have curved corners, as shown below.
 <p align="center">
   <img src="/img/curved-wires.PNG" width="35%">
 </p>
@@ -136,5 +176,12 @@ Wire annotations can be toggled on or off by the user
 ### 19. Symbol Overlap
 When symbols overlap, their bounding boxes are shown to indicate their borders and which symbol is on top.
 <p align="center">
-  <img src="/img/toggle-legend.gif" width="60%">
+  <img src="/img/symb-overlap.gif" width="60%">
+</p>
+
+
+### 20. Error Highlighting
+Users can toggle to perform error highlighting of ports that have not been connected. This is required before using the Issie 'waveform' feature to ensure the ports of all symbols are connected before the simulation.
+<p align="center">
+  <img src="/img/toggle-error.gif" width="60%">
 </p>

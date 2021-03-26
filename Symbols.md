@@ -58,3 +58,18 @@ symbolPortWidth: Model  -> string(Port.Id):  int
   <li><b>symbolPortType: </b>returns the port type from the port id</li>
   <li><b>symbolPortWidth: </b>returns the port width from the port id</li>
 </ul>
+
+## Issie Interface Functions
+Interface functions are used to interface with Issie and convert between Symbol and Component types and vice versa. The main Issie interface functions used are shown below:
+```F#
+updateSymbolModelWithComponent (symModel: Model) (comp:CommonTypes.Component) : Model
+symToComp (sym: Symbol) : CommonTypes.Component
+extractComponent (symModel: Model) (sId:CommonTypes.ComponentId) : CommonTypes.Component
+extractComponents (symModel: Model) : CommonTypes.Component list 
+```
+<ul>
+  <li><b>updateSymbolModelWithComponent: </b>Updates the symbol model by updating any symbol of matching componentId to the component given using the component given, or adds a new symbol based on component given</li>
+  <li><b>symToComp: </b>converts the given symbol into a component type, which is used in Issie</li>
+  <li><b>extractComponent: </b>extracts the symbol of the given component id from the model and converts it to a component type before returning</li>
+  <li><b>extractComponents: </b>extracts the list of symbols from the model and converts each symbol to the component type, returning an equivalent list of components</li>
+</ul>

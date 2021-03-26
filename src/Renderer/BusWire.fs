@@ -511,11 +511,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | AddWire (port1, port2) -> 
         match port1.Width with
         | Some portWidth ->
+            // get new symbol model with error highlighting disabled
+            let newSymbol = Symbol.removeErrorHighlight model.Symbol
+
             let srcPortPos = port1.Pos
             let targetPortPos = port2.Pos
             let wirePoints = getInitialWirePoints (model.Symbol) srcPortPos targetPortPos
             let newWire = makeWireFromPorts (port1) (port2) wirePoints (portWidth) (model.WX)
-            {model with WX=List.append model.WX [newWire]}, Cmd.none
+            {model with WX=List.append model.WX [newWire]; Symbol=newSymbol}, Cmd.none
         | None ->
             model, Cmd.none
 
@@ -731,8 +734,6 @@ let isAnyWireHovered (wModel: Model) (pos: XYPos) : bool =
 //---------------------------interface to Issie---------------------------//
 //------------------------------------------------------------------------//
 
-/// interfaces for Issie currently not used
-
 let wireToConnection (wire: Wire) : CommonTypes.Connection = 
     let vertices = 
         wire.Points
@@ -744,7 +745,7 @@ let wireToConnection (wire: Wire) : CommonTypes.Connection =
         Vertices = vertices
     }
 
-/// Update the symbol with matching componentId to comp, or add a new symbol based on comp.
+/// Update the wire with matching connectionId to new connection, or add the new connection
 let updateWireModelWithConnection (wModel: Model) (conn:CommonTypes.Connection): Model =
     let checkIfWireInModel : Wire option = 
         wModel.WX
@@ -808,7 +809,7 @@ let extractWire
         | Some w -> wireToConnection w
         | None -> failwithf "What? Symbol not found in model"
 
-//extracts the list of wires from the model and converts them to the connection type
+// extracts the list of wires from the model and converts them to the connection type
 let extractWires (wModel: Model) : CommonTypes.Connection list = 
     wModel.WX
     |> List.map wireToConnection
