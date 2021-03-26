@@ -55,7 +55,7 @@ symbolPortWidth: Model  -> string(Port.Id):  int
   <li><b>isAnySymbolDragging: </b>checks if any symbol in the model is dragging (i.e. isDragging = true).</li>
   <li><b>findNextAvailablePos: </b>finds next available position to insert new symbol. This performs bounding box calculations to ensure no collision of newly inserted symbol. This enables a systematic and organized insertion of new symbols without overlapping components.</li>
   <li><b>symbolPortPos: </b>finds the new position of the source port when a symbol is moved. This is important to ensure the ports of a symbol follow the symbol when it is being dragged.</li>
-  <li><b>symbolPortType: </b>returns the port type from the port id</li>
+  <li><b>symbolPortType: </b>returns the port type from the port id </li>
   <li><b>symbolPortWidth: </b>returns the port width from the port id</li>
 </ul>
 
