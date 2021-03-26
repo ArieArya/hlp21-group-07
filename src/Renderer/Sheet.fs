@@ -238,8 +238,8 @@ let displaySvgWithZoom (model: Model) (zoom:float) (svgReact: ReactElement) (dis
                                     FontWeight "Bold"
                                     Fill "Gray" // font color
                                 ]
-                                OnClick (fun _ -> dispatch (ChangeRightTab Catalogue))
-                            ][str "Catalogue"]
+                                OnClick (fun _ -> dispatch (ChangeRightTab Properties))
+                            ][str "Properties"]
                             match model.RightPaneTabVisible with
                             | Catalogue ->
                                     viewCatalogue model dispatch
