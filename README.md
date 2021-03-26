@@ -161,19 +161,19 @@ When automatic routing, wires attempt to avoid symbols. This is especially impor
 </p>
 
 ### 17. Curved Wires
-Wires have curved corners, as shown below.
+Wires have curved corners, as shown below:
 <p align="center">
   <img src="/img/curved-wires.PNG" width="35%">
 </p>
 
 ### 18. Buswire dragging two symbols wire retains shape
-When dragging both symbols of a wire, the wire retains its shape completly
+When dragging both symbols of a wire, the wire retains its shape completely:
 <p align="center">
   <img src="/img/retain-shape.gif" width="60%">
 </p>
 
 ### 19. Toggle legend
-Wire annotations can be toggled on or off by the user
+Wire annotations (showing its width) can be toggled on or off by the user:
 <p align="center">
   <img src="/img/toggle-legend.gif" width="60%">
 </p>
