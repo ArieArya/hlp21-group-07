@@ -11,7 +11,7 @@ open Model
 open Helpers
 open type CommonTypes.ComponentType
 
-
+//Using Some Descriptions from Issie
 let details (comp:CommonTypes.Component) =
     match comp.Type with
         | Input _ -> str "Input"
@@ -71,9 +71,12 @@ let details (comp:CommonTypes.Component) =
                 the global clock"
             //makeMemoryInfo descr mem comp.Id model dispatch
 
-let private textFormField comp isRequired model dispatch =
+let private textFormField (comp:CommonTypes.Component) (isRequired:bool) (model:Model) (dispatch:Dispatch<Msg>) =
     div [ Style [PaddingTop "0.5vh"]][
-        input [   
+        input [
+            SpellCheck false
+            AutoFocus true
+            DefaultValue comp.Label  
             Type "text"
             Placeholder (if isRequired then "Name (required)" else "Name (optional)")
             OnChange (fun ev -> dispatch (UpdateComponentLabel(comp, ev.Value)))
@@ -107,27 +110,15 @@ let private makeNumberOfBitsField (comp:CommonTypes.Component) (model:Model) (di
             ]
         ] [str $"{title}"]
         br []
-        input [   
+        input [
+            DefaultValue width  
             Type "number"
             Placeholder $"{width}"
             OnChange (fun ev -> 
                 match comp.Type with
-                | Input _ -> 
-                    if (int ev.Value < 1) then dispatch (ChangeInputWidth(1)) else dispatch (ChangeInputWidth(int ev.Value))
-                | Output _ -> 
-                    if (int ev.Value < 1) then dispatch (ChangeOutputWidth(1)) else dispatch (ChangeOutputWidth(int ev.Value))
-                | NbitsAdder _ -> 
-                    if (int ev.Value < 1) then dispatch (ChangeAdderBits(1)) else dispatch (ChangeAdderBits(int ev.Value))
-                | Register _ -> 
-                    if (int ev.Value < 1) then dispatch (ChangeRegWidth(1)) else dispatch (ChangeRegWidth(int ev.Value))
-                | RegisterE _ -> 
-                    if (int ev.Value < 1) then dispatch (ChangeRegEnabledWidth(1)) else dispatch (ChangeRegEnabledWidth(int ev.Value))
-                | SplitWire _ -> 
-                    if (int ev.Value < 1) then dispatch (ChangeSplitOutWidth(1)) else dispatch (ChangeSplitOutWidth(int ev.Value))
-                | BusSelection( _, _) -> 
-                    if (int ev.Value < 1) then dispatch (ChangeBusSelectionOutWidth(1)) else dispatch (ChangeBusSelectionOutWidth(int ev.Value))
-                | Constant(_, _) -> 
-                    if (int ev.Value < 1) then dispatch (ChangeConstantWidth(1)) else dispatch (ChangeConstantWidth(int ev.Value))
+                | Input _ | Output _ | NbitsAdder _ | Register _ | RegisterE _ | SplitWire _
+                | BusSelection( _, _) | Constant(_, _) -> 
+                    if (int ev.Value < 1) then dispatch (UpdateComponentWidth(comp, 1)) else dispatch (UpdateComponentWidth(comp, int ev.Value))
                 | c -> failwithf "makeNumberOfBitsField called with invalid component: %A" c
             )
 
@@ -146,12 +137,23 @@ let private makeLsbBitNumberField (comp:CommonTypes.Component) (model:Model) (di
         | BusSelection(width,lsb) -> uint32 lsb, "Least Significant Bit number selected: lsb"
         | _ -> failwithf "makeLsbBitNumberfield called from %A" comp.Type
 
-    div [ Style [PaddingTop "0.5vh"]][
-        input [   
+    div [ Style [PaddingTop "3vh"; Margin "2vh"]][
+        text [ 
+            Style [
+                TextAnchor "middle" 
+                DominantBaseline "middle" 
+                FontSize "2.3vh"
+                FontWeight "Bold"
+                Fill "Gray" 
+            ]
+        ] [str $"{infoText}"]
+        br []
+        input [
+            DefaultValue lsbPos     
             Type "number"
             Placeholder $"{lsbPos}"
             OnChange (fun ev -> 
-                if (int ev.Value < 1) then dispatch (ChangeBusSelectionLSB(1))
+                if (int ev.Value < 0) then dispatch (ChangeBusSelectionLSB(0))
                 else dispatch (ChangeBusSelectionLSB(int ev.Value)))
 
             Style [
@@ -169,8 +171,19 @@ let private makeConstantValueField (comp:CommonTypes.Component) (model:Model) (d
         | Constant(width,cVal) -> cVal, width
         | _ -> failwithf "makeConstantValuefield called from %A" comp.Type
     
-    div [ Style [PaddingTop "0.5vh"]][
+    div [ Style [PaddingTop "3vh"; Margin "2vh"]][
+        text [ 
+            Style [
+                TextAnchor "middle" 
+                DominantBaseline "middle" 
+                FontSize "2.3vh"
+                FontWeight "Bold"
+                Fill "Gray" 
+            ]
+        ] [str $"Constant Value"]
+        br []
         input [   
+            DefaultValue cVal  
             Type "number"
             Placeholder $"{cVal}"
             OnChange (fun ev -> 
@@ -205,7 +218,6 @@ let private makeExtraInfo (comp:CommonTypes.Component) (model:Model) (dispatch:D
 let viewProperties (model:Model) (dispatch:Dispatch<Msg>) =
         dispatch (ChangeSelectedComponent (findSelectedSymbol model.Wire.Symbol))
         div [ Style [Height "100%"; Width "100%"; TextAlign TextAlignOptions.Center; PaddingBottom "5vh"]][
-            // module selection title
             div [ Style [PaddingTop "5vh"]][
                   text [ 
                       Style [

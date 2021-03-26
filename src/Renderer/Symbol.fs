@@ -64,6 +64,8 @@ type Msg =
     | SaveModel
     | ErrorHighlightPorts of CommonTypes.Port List
     | UpdateComponentLabel of CommonTypes.Component * string
+    | UpdateComponentWidth of CommonTypes.Component * int
+
 
 
 //------------------------------------------------------------------------//
@@ -744,7 +746,28 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                             sym
                     ), Cmd.none
 
-
+    | UpdateComponentWidth (comp, newWidth) ->
+        model
+        |> List.map (fun sym -> 
+            // update all ports in list to be error highlighted if not in connected port list
+            let updatePorts (portList: CommonTypes.Port List)= 
+                portList
+                |> List.map (fun port ->
+                    {port with Width=Some newWidth})
+                 
+            let updatedInputPorts = 
+                sym.InputPorts 
+                |> updatePorts
+            
+            let updatedOutputPorts = 
+                sym.OutputPorts 
+                |> updatePorts
+            if (unwrapCompId sym.Id) = comp.Id then
+                {sym with InputPorts = updatedInputPorts; OutputPorts = updatedOutputPorts}
+            else 
+                sym
+           ), Cmd.none
+           
 //------------------------------------------------------------------------//
 //-------------------------View Function for Symbols----------------------//
 //------------------------------------------------------------------------//

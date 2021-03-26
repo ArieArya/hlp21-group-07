@@ -280,10 +280,17 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | ChangeSelectedComponent comp ->
         {model with SelectedComponent = comp}, Cmd.none
     
-    | UpdateComponentLabel (comp, label) ->
+    | UpdateComponentLabel (comp, newLabel) ->
         // return updated model
         let newModel, newCmd = 
-            Symbol.update (Symbol.Msg.UpdateComponentLabel (comp, label)) model.Wire.Symbol
+            Symbol.update (Symbol.Msg.UpdateComponentLabel (comp, newLabel)) model.Wire.Symbol
+            
+        {model with Wire = {model.Wire with Symbol = newModel}}, newCmd
+
+    | UpdateComponentWidth (comp, newWidth) ->
+        // return updated model
+        let newModel, newCmd = 
+            Symbol.update (Symbol.Msg.UpdateComponentWidth (comp, newWidth)) model.Wire.Symbol
             
         {model with Wire = {model.Wire with Symbol = newModel}}, newCmd
 

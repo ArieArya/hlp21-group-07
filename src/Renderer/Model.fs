@@ -108,6 +108,7 @@ type Msg =
     | ChangeRightTab of RightTab
     | ChangeSelectedComponent of CommonTypes.Component option
     | UpdateComponentLabel of CommonTypes.Component * string
+    | UpdateComponentWidth of CommonTypes.Component * int
     | ErrorHighlight
     // This section is for handling user-defined parameters for Interface (replacing ISSIE)
     // for input and output
