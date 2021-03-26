@@ -546,7 +546,6 @@ let rec update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
     // Unused Mouse Messages
     | MouseMsg mMsg ->
-        printfn "move" 
         let newModel, newCmd = 
             let newSymbol = 
                 model
@@ -555,24 +554,20 @@ let rec update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             match newSymbol with
                 | Some sym ->
                     match mMsg.Op with 
-                    | Up ->
-                        printfn "up"
-                        update (EndDragging (sym.Id)) model
                     | Down ->
-                        printfn "down"
                         update (EndDragging (sym.Id)) model
+                    | Drag ->
+                        update (Dragging (sym.Id, mMsg.Pos)) model
                     | Move ->
-                        printfn "move"
                         update (Dragging (sym.Id, mMsg.Pos)) model
                         //update (Dragging (sym.Id, mMsg.Pos)) model
                     | _->
-                        printfn "other"
                         update (StartDragging (sym.Id, mMsg.Pos)) model
                 | None ->
                     model, Cmd.none
        
-        newModel, newCmd
-    //model, Cmd.none 
+        // newModel, newCmd
+        model, Cmd.none 
 
 
     // Mark all symbols covered by the mouse select box as IsSelected = true
