@@ -764,6 +764,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             {sym with InputPorts = updatedInputPorts; OutputPorts = updatedOutputPorts}
            ), Cmd.none
 
+    //updates the label for a given symbol
     | UpdateComponentLabel (comp, newLabel) ->
         model
         |> List.map (fun sym -> 
@@ -773,6 +774,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                             sym
                     ), Cmd.none
 
+    //updates the width for a given symbol
     | UpdateComponentWidth (comp, newWidth) ->
         model
         |> List.map (fun sym -> 
@@ -973,6 +975,7 @@ let private renderShape =
                         | _ -> 
                             portRadius, "none"
                 
+                //updates portfill color to be red if error highlight is true for that port
                 let addErrorHighlightToColor = 
                     if portType = CommonTypes.PortType.Input then
                         if (props.Shape.InputPorts.[i].ErrorHighlight) then

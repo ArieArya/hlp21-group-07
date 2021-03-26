@@ -734,6 +734,7 @@ let isAnyWireHovered (wModel: Model) (pos: XYPos) : bool =
 //---------------------------interface to Issie---------------------------//
 //------------------------------------------------------------------------//
 
+//converts the given Wire into a connection type, which is used in Issie
 let wireToConnection (wire: Wire) : CommonTypes.Connection = 
     let vertices = 
         wire.Points
@@ -800,16 +801,17 @@ let updateWireModelWithConnection (wModel: Model) (conn:CommonTypes.Connection):
     
     {wModel with WX = updatedWireList}
 
+//extracts the wire of the given connection id from the model and converts it to a connection type before returning
 let extractWire 
     (wModel: Model) 
-    (wId:CommonTypes.ConnectionId) : CommonTypes.Connection= 
+    (wId:CommonTypes.ConnectionId) : CommonTypes.Connection = 
     
     List.tryFind (fun wire -> wire.Id = wId) wModel.WX
     |> function
         | Some w -> wireToConnection w
         | None -> failwithf "What? Symbol not found in model"
 
-// extracts the list of wires from the model and converts them to the connection type
+// extracts the list of wires from the model and converts them to the connection type, returning a list of connections
 let extractWires (wModel: Model) : CommonTypes.Connection list = 
     wModel.WX
     |> List.map wireToConnection
