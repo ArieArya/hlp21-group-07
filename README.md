@@ -69,7 +69,7 @@ All symbols defined from the ISSIE CommonTypes are shown in the figure below. No
 ### 3. Catalogue & Properties
 In addition to the canvas, a catalogue & properties menu is provided. The catalogue menu allows users to select the different symbols to add, whilst the properties menu allows users to select symbols on the canvas and observe its description and proprties. This also allows users to change the symbol names / other properties. Note, when changing symbol properties, please hold Ctrl while clicking the input fields so that selected symbols will not be de-selected. This feature is demonstrated below:
 <p align="center">
-  <img src="/img/catalogue-gif" width="70%">
+  <img src="/img/catalogue.gif" width="80%">
 </p>
 
 ### 4. Snap-to-Grid
